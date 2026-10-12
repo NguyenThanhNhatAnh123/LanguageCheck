@@ -1,6 +1,6 @@
 import type { ClaudeAnalysis, ClaudeBlock, Severity } from "@/lib/claude/schema";
 import type { DictionaryMatcher } from "@/lib/dictionary/matcher";
-import { LANGUAGES, type Language } from "@/lib/languages";
+import { isLanguage, type Language } from "@/lib/languages";
 import { applyLtLanguageRules, ltLabelVi } from "./languagetool-rules";
 import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, isAllCaps } from "./text-case";
 import type {
@@ -21,10 +21,6 @@ import type {
 
 const MAX_SUGGESTIONS = 3;
 const SEVERITY_RANK: Record<Severity, number> = { info: 0, warning: 1, error: 2 };
-
-function isLanguage(value: string): value is Language {
-  return (LANGUAGES as readonly string[]).includes(value);
-}
 
 /** Language used for a block's rules and case conversion. */
 function blockLanguage(block: ClaudeBlock, analysis: ClaudeAnalysis): Language | undefined {

@@ -1,11 +1,19 @@
 import { ArrowRightIcon } from "lucide-react";
+import { AddToDictionaryButton } from "@/components/dictionary/add-to-dictionary-button";
 import { SeverityBadge } from "@/components/status-badge";
 import { sourceLabel } from "@/lib/analysis/labels";
 import type { Issue } from "@/lib/analysis/types";
+import type { Language } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { UNDERLINE_CLASSES } from "./highlighted-text";
 
-export function IssueItem({ issue }: { issue: Issue }) {
+/** Only single words go into the dictionary (not phrases, not unreadable [?] spots). */
+function canAddToDictionary(issue: Issue): boolean {
+  const word = issue.original.trim();
+  return word.length > 0 && word.length <= 100 && !/\s/.test(word) && !word.includes("[?]") && issue.type !== "ocr_uncertain";
+}
+
+export function IssueItem({ issue, language }: { issue: Issue; language: Language | null }) {
   const ltOnly = !issue.sources.includes("claude");
   const notes = issue.suggestions.filter((suggestion) => suggestion.noteVi);
 
@@ -58,6 +66,11 @@ export function IssueItem({ issue }: { issue: Issue }) {
         <span>Nguồn: {sourceLabel(issue.sources)}</span>
         {issue.intentionalPossible && <span>· Có thể cố ý</span>}
         {issue.start === null && <span>· Không định vị được trong chữ</span>}
+        {language && canAddToDictionary(issue) && (
+          <span className="ml-auto">
+            <AddToDictionaryButton word={issue.original.trim()} language={language} />
+          </span>
+        )}
       </div>
     </li>
   );

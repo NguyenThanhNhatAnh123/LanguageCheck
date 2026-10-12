@@ -1,10 +1,15 @@
 import { StatusBadge } from "@/components/status-badge";
 import { languageLabel } from "@/lib/analysis/labels";
 import type { AnalysisResult } from "@/lib/analysis/types";
+import { isLanguage, type Language } from "@/lib/languages";
 import { CorrectedText } from "./corrected-text";
 import { HighlightedText } from "./highlighted-text";
 import { IssueItem } from "./issue-item";
 import { MockupThumbnail } from "./mockup-thumbnail";
+
+function asLanguage(value: string): Language | null {
+  return isLanguage(value) ? value : null;
+}
 
 export function ResultCard({ name, objectUrl, result }: { name: string; objectUrl: string; result: AnalysisResult }) {
   const blocks = result.blocks.filter((block) => block.text.trim().length > 0);
@@ -32,7 +37,7 @@ export function ResultCard({ name, objectUrl, result }: { name: string; objectUr
               {issues.length > 0 && (
                 <ul className="divide-y border-t pt-3">
                   {issues.map((issue) => (
-                    <IssueItem key={issue.id} issue={issue} />
+                    <IssueItem key={issue.id} issue={issue} language={asLanguage(block.language) ?? asLanguage(result.language)} />
                   ))}
                 </ul>
               )}

@@ -1,13 +1,28 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { analyzeTexts } from "@/lib/analysis/pipeline";
 import { analyzeImage, type AnalyzeSuccess } from "@/lib/client/analyze-image";
 import type { PickedImage } from "@/lib/client/collect-files";
+import {
+  addDictionaryWord,
+  DictionaryApiError,
+  deleteDictionaryWord,
+  fetchDictionary,
+  importDictionaryCsv,
+} from "@/lib/client/dictionary-api";
 import { TaskQueue } from "@/lib/client/task-queue";
+import type { DictionaryEntryDto } from "@/lib/dictionary/dto";
+import { createDictionaryMatcher, type DictionaryMatcher } from "@/lib/dictionary/matcher";
+import type { Language } from "@/lib/languages";
 
 // The checking session lives here, mounted once in the root layout, so moving between
 // pages keeps it. It is lost only when the tab is closed or reloaded, or on
 // "Kết thúc phiên" (CLAUDE.md "Nguyên tắc sản phẩm": results are never stored).
+//
+// The team dictionary is mirrored here too: whenever it changes, every finished result is
+// recomputed from its raw input (analyzeTexts), so an issue on a word just added to the
+// dictionary disappears, and comes back if that is undone.
 
 const MAX_PARALLEL_UPLOADS = 4;
 const REAUTH_POLL_MS = 3_000;
@@ -29,7 +44,12 @@ type Action =
   | { type: "done"; id: string; response: AnalyzeSuccess }
   | { type: "fail"; id: string; error: string }
   | { type: "requeue"; ids: string[] }
+  | { type: "refilter"; matcher: DictionaryMatcher }
   | { type: "reset" };
+
+function refilter(response: AnalyzeSuccess, matcher: DictionaryMatcher): AnalyzeSuccess {
+  return { ...response, result: analyzeTexts(response.input, matcher).result };
+}
 
 function reducer(items: SessionItem[], action: Action): SessionItem[] {
   const update = (id: string, change: Partial<SessionItem>) =>
@@ -45,9 +65,19 @@ function reducer(items: SessionItem[], action: Action): SessionItem[] {
       return update(action.id, { state: "failed", error: action.error });
     case "requeue":
       return items.map((item) => (action.ids.includes(item.id) ? { ...item, state: "queued", error: null } : item));
+    case "refilter":
+      return items.map((item) =>
+        item.state === "done" && item.response ? { ...item, response: refilter(item.response, action.matcher) } : item,
+      );
     case "reset":
       return [];
   }
+}
+
+export interface DictionaryState {
+  /** null until loaded for the first time. */
+  entries: DictionaryEntryDto[] | null;
+  error: string | null;
 }
 
 export interface SessionApi {
@@ -61,6 +91,14 @@ export interface SessionApi {
   endSession: () => void;
   /** Called when any request sees 401 (e.g. the header's health check). */
   reportAuthExpired: () => void;
+
+  dictionary: DictionaryState;
+  /** Reloads the dictionary and re-filters every finished result. */
+  refreshDictionary: () => Promise<void>;
+  /** Each mutation refreshes the dictionary afterwards. They throw DictionaryApiError. */
+  addToDictionary: (input: { language: Language; word: string; note?: string | null }) => Promise<{ created: boolean; entry: DictionaryEntryDto }>;
+  removeFromDictionary: (id: number) => Promise<void>;
+  importDictionary: (file: File) => Promise<{ created: number; existing: number; invalidLines: number[] }>;
 }
 
 const SessionContext = createContext<SessionApi | null>(null);
@@ -79,6 +117,7 @@ export function useSession(): SessionApi {
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [items, dispatch] = useReducer(reducer, []);
   const [authExpired, setAuthExpired] = useState(false);
+  const [dictionary, setDictionary] = useState<DictionaryState>({ entries: null, error: null });
 
   const queue = useRef<TaskQueue | null>(null);
   const controllers = useRef(new Map<string, AbortController>());
@@ -88,6 +127,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   // Read by the beforeunload handler; updated synchronously on endSession() so that a
   // navigation right after it (logout) is not blocked by a stale warning.
   const hasItems = useRef(false);
+  // Latest dictionary, once loaded: also applied to answers that arrive later (their
+  // server-side filtering may predate a change made meanwhile).
+  const matcher = useRef<DictionaryMatcher | null>(null);
 
   const pauseForReauth = useCallback(() => {
     ensureQueue(queue).pause();
@@ -111,7 +153,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             pauseForReauth();
             ensureQueue(queue).pushFront(task);
           } else if (outcome.kind === "done") {
-            dispatch({ type: "done", id: item.id, response: outcome.response });
+            const response = matcher.current ? refilter(outcome.response, matcher.current) : outcome.response;
+            dispatch({ type: "done", id: item.id, response });
           } else {
             dispatch({ type: "fail", id: item.id, error: outcome.error });
           }
@@ -162,6 +205,64 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "reset" });
   }, []);
 
+  // --- Dictionary -----------------------------------------------------------------------
+
+  /** Runs a dictionary API call; a 401 pauses the queue like any other expired request. */
+  const guard = useCallback(
+    async <T,>(work: () => Promise<T>): Promise<T> => {
+      try {
+        return await work();
+      } catch (error) {
+        if (error instanceof DictionaryApiError && error.unauthorized) pauseForReauth();
+        throw error;
+      }
+    },
+    [pauseForReauth],
+  );
+
+  const refreshDictionary = useCallback(async () => {
+    try {
+      const entries = await guard(fetchDictionary);
+      const next = createDictionaryMatcher(entries.map((entry) => ({ language: entry.language, wordKey: entry.wordKey })));
+      matcher.current = next;
+      setDictionary({ entries, error: null });
+      dispatch({ type: "refilter", matcher: next });
+    } catch (error) {
+      setDictionary((current) => ({
+        entries: current.entries,
+        error: error instanceof Error ? error.message : "Không tải được từ điển.",
+      }));
+    }
+  }, [guard]);
+
+  const addToDictionary = useCallback<SessionApi["addToDictionary"]>(
+    async (input) => {
+      const result = await guard(() => addDictionaryWord(input));
+      await refreshDictionary();
+      return result;
+    },
+    [guard, refreshDictionary],
+  );
+
+  const removeFromDictionary = useCallback(
+    async (id: number) => {
+      await guard(() => deleteDictionaryWord(id));
+      await refreshDictionary();
+    },
+    [guard, refreshDictionary],
+  );
+
+  const importDictionary = useCallback(
+    async (file: File) => {
+      const result = await guard(() => importDictionaryCsv(file));
+      await refreshDictionary();
+      return result;
+    },
+    [guard, refreshDictionary],
+  );
+
+  // --- Expired login, tab close ----------------------------------------------------------
+
   // While the login session is expired, poll a cheap endpoint (and re-check when the tab
   // gets focus). As soon as the user has logged in again, in any tab, resume the queue.
   useEffect(() => {
@@ -210,8 +311,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       retry,
       endSession,
       reportAuthExpired: pauseForReauth,
+      dictionary,
+      refreshDictionary,
+      addToDictionary,
+      removeFromDictionary,
+      importDictionary,
     }),
-    [items, authExpired, addImages, retry, endSession, pauseForReauth],
+    [items, authExpired, addImages, retry, endSession, pauseForReauth, dictionary, refreshDictionary, addToDictionary, removeFromDictionary, importDictionary],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

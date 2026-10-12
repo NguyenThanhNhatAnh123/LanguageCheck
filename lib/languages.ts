@@ -8,3 +8,7 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
   "fr-FR": "Tiếng Pháp",
   "es-ES": "Tiếng Tây Ban Nha",
 };
+
+export function isLanguage(value: string): value is Language {
+  return (LANGUAGES as readonly string[]).includes(value);
+}

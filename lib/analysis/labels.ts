@@ -1,5 +1,5 @@
 import type { Severity } from "@/lib/claude/schema";
-import { LANGUAGE_LABELS, LANGUAGES, type Language } from "@/lib/languages";
+import { isLanguage, LANGUAGE_LABELS } from "@/lib/languages";
 import type { AnalysisResult, AnalysisStatus, IssueSource } from "./types";
 
 // Vietnamese labels for the UI.
@@ -20,10 +20,6 @@ export const SEVERITY_LABELS: Record<Severity, string> = {
 export function sourceLabel(sources: readonly IssueSource[]): string {
   if (sources.includes("claude") && sources.includes("lt")) return "Cả 2";
   return sources.includes("lt") ? "LanguageTool" : "Claude";
-}
-
-function isLanguage(value: string): value is Language {
-  return (LANGUAGES as readonly string[]).includes(value);
 }
 
 export function languageLabel(language: AnalysisResult["language"] | string): string {
