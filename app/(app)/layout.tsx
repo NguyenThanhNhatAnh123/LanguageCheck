@@ -1,5 +1,6 @@
 import { ScanTextIcon } from "lucide-react";
 import Link from "next/link";
+import { HeaderNav } from "@/components/header-nav";
 import { LogoutButton } from "@/components/logout-button";
 import { LtStatusBadge } from "@/components/lt-status-badge";
 import { SessionExpiredBanner } from "@/components/session/session-expired-banner";
@@ -11,19 +12,12 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
   return (
     <>
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="mx-auto flex h-12 w-full max-w-5xl items-center gap-5 px-4 sm:px-6">
+        <div className="mx-auto flex h-12 w-full max-w-5xl items-center gap-4 px-4 sm:px-6">
           <Link href="/" className="focus-ring flex items-center gap-2 rounded-md text-sm font-semibold tracking-tight">
             <ScanTextIcon className="size-4" aria-hidden />
-            POD Text QA
+            <span className="hidden sm:inline">POD Text QA</span>
           </Link>
-          {isDev && (
-            <Link
-              href="/lt-test"
-              className="focus-ring rounded-md text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground"
-            >
-              Thử LanguageTool
-            </Link>
-          )}
+          <HeaderNav showDevLinks={isDev} />
           <div className="ml-auto flex items-center gap-1.5">
             <LtStatusBadge />
             <ThemeToggle />

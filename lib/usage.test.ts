@@ -5,7 +5,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { localDateKey, recordUsage } from "./usage";
+import { listUsageDays, localDateKey, monthTotals, recordUsage } from "./usage";
 
 let db: Db;
 
@@ -37,5 +37,19 @@ describe("recordUsage", () => {
 describe("localDateKey", () => {
   it("pads month and day", () => {
     expect(localDateKey(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+});
+
+describe("listUsageDays and monthTotals", () => {
+  it("lists recent days first and sums only the current month", () => {
+    recordUsage(usage, db, new Date(2026, 8, 30, 12)); // September
+    recordUsage(usage, db, new Date(2026, 9, 1, 12));
+    recordUsage(usage, db, new Date(2026, 9, 12, 12));
+    recordUsage(usage, db, new Date(2026, 9, 12, 13));
+
+    expect(listUsageDays(10, db).map((day) => day.date)).toEqual(["2026-10-12", "2026-10-01", "2026-09-30"]);
+    expect(monthTotals(new Date(2026, 9, 20), db)).toEqual({ days: 2, images: 3, inputTokens: 1260, outputTokens: 120 });
+    expect(monthTotals(new Date(2026, 8, 20), db)).toEqual({ days: 1, images: 1, inputTokens: 420, outputTokens: 40 });
+    expect(monthTotals(new Date(2026, 6, 1), db)).toEqual({ days: 0, images: 0, inputTokens: 0, outputTokens: 0 });
   });
 });

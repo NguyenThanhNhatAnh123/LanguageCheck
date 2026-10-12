@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { desc, like, sql } from "drizzle-orm";
 import { getDb, type Db } from "@/lib/db";
 import { usageDaily } from "@/lib/db/schema";
 import type { TokenUsage } from "@/lib/claude/transport";
@@ -29,4 +29,34 @@ export function recordUsage(usage: TokenUsage, db: Db = getDb(), now: Date = new
       },
     })
     .run();
+}
+
+export type UsageDay = typeof usageDaily.$inferSelect;
+
+/** Most recent days first. */
+export function listUsageDays(limit = 90, db: Db = getDb()): UsageDay[] {
+  return db.select().from(usageDaily).orderBy(desc(usageDaily.date)).limit(limit).all();
+}
+
+export interface UsageTotals {
+  days: number;
+  images: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** Totals for the calendar month containing `now` (server local time). */
+export function monthTotals(now: Date = new Date(), db: Db = getDb()): UsageTotals {
+  const prefix = localDateKey(now).slice(0, 7); // YYYY-MM
+  const row = db
+    .select({
+      days: sql<number>`count(*)`,
+      images: sql<number>`coalesce(sum(${usageDaily.images}), 0)`,
+      inputTokens: sql<number>`coalesce(sum(${usageDaily.inputTokens}), 0)`,
+      outputTokens: sql<number>`coalesce(sum(${usageDaily.outputTokens}), 0)`,
+    })
+    .from(usageDaily)
+    .where(like(usageDaily.date, `${prefix}-%`))
+    .get();
+  return row ?? { days: 0, images: 0, inputTokens: 0, outputTokens: 0 };
 }
