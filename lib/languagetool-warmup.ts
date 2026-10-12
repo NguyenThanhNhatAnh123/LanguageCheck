@@ -81,6 +81,9 @@ async function runWarmup(state: LtState): Promise<void> {
     }
   }
 
+  // LanguageTool just answered every language, so it is online. Without this, the first
+  // successful health check would see "unknown" -> "online" and warm up a second time.
+  state.lastStatus = "online";
   console.info(`[lt-warmup] warmed ${LANGUAGES.length} languages in ${Date.now() - startedAt}ms`);
 }
 
