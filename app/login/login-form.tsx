@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2Icon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
@@ -57,7 +58,8 @@ export function LoginForm() {
         </Alert>
       )}
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Đang đăng nhập..." : "Đăng nhập"}
+        {pending && <Loader2Icon className="animate-spin" />}
+        {pending ? "Đang đăng nhập…" : "Đăng nhập"}
       </Button>
     </form>
   );

@@ -1,63 +1,64 @@
-import { Badge } from "@/components/ui/badge";
-import { SEVERITY_LABELS, sourceLabel } from "@/lib/analysis/labels";
+import { ArrowRightIcon } from "lucide-react";
+import { SeverityBadge } from "@/components/status-badge";
+import { sourceLabel } from "@/lib/analysis/labels";
 import type { Issue } from "@/lib/analysis/types";
-import type { Severity } from "@/lib/claude/schema";
 import { cn } from "@/lib/utils";
-
-const SEVERITY_BADGE: Record<Severity, string> = {
-  error: "border-red-200 bg-red-50 text-red-700",
-  warning: "border-amber-200 bg-amber-50 text-amber-800",
-  info: "border-sky-200 bg-sky-50 text-sky-700",
-};
+import { UNDERLINE_CLASSES } from "./highlighted-text";
 
 export function IssueItem({ issue }: { issue: Issue }) {
   const ltOnly = !issue.sources.includes("claude");
   const notes = issue.suggestions.filter((suggestion) => suggestion.noteVi);
 
   return (
-    <li className="space-y-1.5 rounded-md border p-3">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Badge variant="outline" className={cn(SEVERITY_BADGE[issue.severity])}>
-          {SEVERITY_LABELS[issue.severity]}
-        </Badge>
-        <Badge variant="outline">{sourceLabel(issue.sources)}</Badge>
-        {issue.intentionalPossible && <Badge variant="secondary">Có thể cố ý</Badge>}
-        {issue.start === null && <Badge variant="secondary">Không định vị được trong chữ</Badge>}
-      </div>
-
-      <p className="font-mono text-sm">
-        <span className="text-red-700 line-through decoration-red-400">{issue.original}</span>
+    <li className="space-y-2 py-3 first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={cn("font-mono text-sm", UNDERLINE_CLASSES[issue.severity])}>{issue.original}</span>
         {issue.suggestions.length > 0 && (
           <>
-            <span className="mx-1.5 text-muted-foreground">→</span>
-            {issue.suggestions.map((suggestion, index) => (
-              <span key={index}>
-                {index > 0 && <span className="mx-1 text-muted-foreground">/</span>}
-                <span className={cn(index === 0 && "font-semibold text-emerald-700")}>{suggestion.text}</span>
-              </span>
-            ))}
+            <ArrowRightIcon className="size-3.5 text-muted-foreground" aria-label="sửa thành" />
+            <span className="flex flex-wrap gap-1.5">
+              {issue.suggestions.map((suggestion, index) => (
+                <span
+                  key={index}
+                  className={cn(
+                    "rounded-md border px-1.5 py-0.5 font-mono text-xs",
+                    index === 0
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {suggestion.text}
+                </span>
+              ))}
+            </span>
           </>
         )}
-      </p>
+      </div>
 
       {ltOnly ? (
-        <p className="text-sm">
-          <span className="font-medium">{issue.ltLabelVi}.</span>{" "}
-          <span className="text-muted-foreground">LanguageTool: {issue.ltMessages[0]}</span>
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{issue.ltLabelVi}.</span> LanguageTool: {issue.ltMessages[0]}
         </p>
       ) : (
-        issue.explanationVi && <p className="text-sm">{issue.explanationVi}</p>
+        issue.explanationVi && <p className="text-sm text-muted-foreground">{issue.explanationVi}</p>
       )}
 
       {notes.length > 0 && (
-        <ul className="text-xs text-muted-foreground">
+        <ul className="space-y-0.5 text-xs text-muted-foreground">
           {notes.map((suggestion, index) => (
             <li key={index}>
-              {suggestion.text}: {suggestion.noteVi}
+              <span className="font-mono">{suggestion.text}</span>: {suggestion.noteVi}
             </li>
           ))}
         </ul>
       )}
+
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <SeverityBadge severity={issue.severity} />
+        <span>Nguồn: {sourceLabel(issue.sources)}</span>
+        {issue.intentionalPossible && <span>· Có thể cố ý</span>}
+        {issue.start === null && <span>· Không định vị được trong chữ</span>}
+      </div>
     </li>
   );
 }

@@ -8,7 +8,7 @@ export default function LtTestPage() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h1 className="text-xl font-semibold">Thử LanguageTool</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Thử LanguageTool</h1>
         <p className="text-sm text-muted-foreground">
           Trang này chỉ có ở môi trường dev. Kết quả là JSON gốc LanguageTool trả về.
         </p>

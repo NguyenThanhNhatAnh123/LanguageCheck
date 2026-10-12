@@ -76,7 +76,7 @@ export function LtTestForm() {
           {pending ? "Đang kiểm tra..." : "Kiểm tra"}
         </Button>
       </form>
-      <pre className="max-h-[70vh] overflow-auto rounded-lg border bg-muted p-4 font-mono text-xs">
+      <pre className="max-h-[70vh] overflow-auto rounded-xl border bg-muted/40 p-4 font-mono text-xs">
         {result ?? "Kết quả sẽ hiện ở đây."}
       </pre>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import {
   AlertDialog,
@@ -34,12 +35,12 @@ export function LogoutButton() {
   return (
     <>
       <Button
-        variant="outline"
+        variant="ghost"
         size="sm"
         disabled={pending}
         onClick={() => (session.items.length > 0 ? setConfirm(true) : void logout())}
       >
-        Đăng xuất
+        <LogOutIcon /> <span className="hidden sm:inline">Đăng xuất</span>
       </Button>
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>

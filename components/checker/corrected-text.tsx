@@ -2,6 +2,7 @@
 
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 export function CorrectedText({ text }: { text: string }) {
@@ -17,18 +18,18 @@ export function CorrectedText({ text }: { text: string }) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
+      toast.success("Đã sao chép chữ sau khi sửa");
     } catch {
-      // Clipboard can be blocked; the text is still selectable.
+      toast.error("Trình duyệt chặn sao chép. Hãy bôi đen chữ rồi sao chép bằng tay.");
     }
   }
 
   return (
-    <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-3">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-emerald-800">Chữ sau khi sửa</span>
-        <Button variant="outline" size="sm" onClick={copy}>
-          {copied ? <CheckIcon /> : <CopyIcon />}
-          {copied ? "Đã sao chép" : "Sao chép"}
+    <div className="rounded-lg bg-muted/50 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Chữ sau khi sửa</span>
+        <Button variant="ghost" size="icon-sm" onClick={copy} aria-label="Sao chép chữ sau khi sửa" title="Sao chép">
+          {copied ? <CheckIcon className="text-emerald-600 dark:text-emerald-400" /> : <CopyIcon />}
         </Button>
       </div>
       <p className="font-mono text-sm whitespace-pre-wrap select-all">{text}</p>

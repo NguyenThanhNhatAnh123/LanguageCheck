@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLinkIcon } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Notice } from "@/components/notice";
 import { Button } from "@/components/ui/button";
 import { useSession } from "./session-provider";
 
@@ -12,16 +12,20 @@ export function SessionExpiredBanner() {
   if (!authExpired) return null;
 
   return (
-    <Alert variant="destructive" className="flex flex-wrap items-center justify-between gap-3">
-      <AlertDescription>Phiên đăng nhập hết hạn — đăng nhập lại để tiếp tục. Kết quả trong tab này vẫn được giữ.</AlertDescription>
-      <Button
-        variant="outline"
-        size="sm"
-        // A new tab, so this one (and its results) stays as it is.
-        onClick={() => window.open("/login?next=%2Freauth", "_blank", "noopener")}
-      >
-        <ExternalLinkIcon /> Đăng nhập lại
-      </Button>
-    </Alert>
+    <Notice
+      tone="error"
+      action={
+        <Button
+          variant="outline"
+          size="sm"
+          // A new tab, so this one (and its results) stays as it is.
+          onClick={() => window.open("/login?next=%2Freauth", "_blank", "noopener")}
+        >
+          <ExternalLinkIcon /> Đăng nhập lại
+        </Button>
+      }
+    >
+      Phiên đăng nhập hết hạn — đăng nhập lại để tiếp tục. Kết quả trong tab này vẫn được giữ.
+    </Notice>
   );
 }

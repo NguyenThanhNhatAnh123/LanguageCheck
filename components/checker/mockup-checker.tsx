@@ -2,7 +2,9 @@
 
 import { RotateCcwIcon, XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import { Notice } from "@/components/notice";
+import { useSession, type SessionItem } from "@/components/session/session-provider";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -13,11 +15,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { useSession, type SessionItem } from "@/components/session/session-provider";
 import type { AnalyzeSuccess } from "@/lib/client/analyze-image";
 import type { CollectResult } from "@/lib/client/collect-files";
 import { MockupThumbnail } from "./mockup-thumbnail";
+import { ProcessingList } from "./processing-list";
 import { ResultCard } from "./result-card";
+import { ResultGroup } from "./result-group";
 import { SummaryBar, type SessionSummary } from "./summary-bar";
 import { UploadZone } from "./upload-zone";
 
@@ -42,21 +45,22 @@ function summarize(items: readonly SessionItem[]): SessionSummary {
 export function MockupChecker() {
   const session = useSession();
   const { items } = session;
-  const [notice, setNotice] = useState<string | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   function onCollected(collected: CollectResult) {
     session.addImages(collected.images);
-    const parts = [`Đã thêm ${collected.images.length} ảnh.`];
-    if (collected.skipped > 0) parts.push(`Bỏ qua ${collected.skipped} file không phải ảnh.`);
-    if (collected.brokenZips > 0) parts.push(`Không đọc được ${collected.brokenZips} file .zip.`);
-    setNotice(parts.join(" "));
+    const skipped = [
+      collected.skipped > 0 ? `Bỏ qua ${collected.skipped} file không phải ảnh.` : null,
+      collected.brokenZips > 0 ? `Không đọc được ${collected.brokenZips} file .zip.` : null,
+    ].filter(Boolean);
+    if (collected.images.length === 0) toast.warning("Không tìm thấy ảnh nào", { description: skipped.join(" ") || undefined });
+    else toast.success(`Đã thêm ${collected.images.length} ảnh`, { description: skipped.join(" ") || undefined });
   }
 
   function endSession() {
     session.endSession();
-    setNotice(null);
     setConfirmEnd(false);
+    toast("Đã kết thúc phiên", { description: "Toàn bộ kết quả đã được xóa." });
   }
 
   const summary = useMemo(() => summarize(items), [items]);
@@ -65,89 +69,82 @@ export function MockupChecker() {
   const errors = byStatus("error");
   const warnings = byStatus("warning");
   const failed = items.filter((item) => item.state === "failed");
+  const processing = items.filter((item) => item.state === "processing");
+  const queued = items.filter((item) => item.state === "queued").length;
   const ltOffline = items.filter((item) => item.response?.result.ltStatus === "offline").length;
   const mock = items.some((item) => item.response?.mock);
-  const hasItems = items.length > 0;
+
+  if (items.length === 0) {
+    return (
+      <div className="flex min-h-[calc(100svh-12rem)] flex-col justify-center gap-8 py-6">
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Kiểm tra chữ trên mockup</h1>
+          <p className="text-muted-foreground">Chỉ những mockup có lỗi hoặc đáng nghi mới hiện ra, kèm cách sửa.</p>
+        </div>
+        <UploadZone variant="hero" onCollected={onCollected} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Kiểm tra mockup</h1>
-        {hasItems && (
-          // Nothing finished yet means nothing to lose: no confirmation needed.
-          <Button variant="outline" onClick={() => (session.hasResults ? setConfirmEnd(true) : endSession())}>
-            <XIcon /> Kết thúc phiên
-          </Button>
-        )}
+        <h1 className="text-xl font-semibold tracking-tight">Kiểm tra mockup</h1>
+        {/* Nothing finished yet means nothing to lose: no confirmation needed. */}
+        <Button variant="outline" size="sm" onClick={() => (session.hasResults ? setConfirmEnd(true) : endSession())}>
+          <XIcon /> Kết thúc phiên
+        </Button>
       </div>
 
-      <UploadZone onCollected={onCollected} />
+      <UploadZone variant="compact" onCollected={onCollected} />
 
-      {notice && (
-        <Alert>
-          <AlertDescription>{notice}</AlertDescription>
-        </Alert>
-      )}
       {ltOffline > 0 && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            LanguageTool đang lỗi, kết quả chỉ từ Claude ({ltOffline} ảnh bị ảnh hưởng).
-          </AlertDescription>
-        </Alert>
+        <Notice tone="warning">LanguageTool đang lỗi, kết quả chỉ từ Claude ({ltOffline} ảnh bị ảnh hưởng).</Notice>
       )}
       {mock && (
-        <Alert>
-          <AlertDescription>
-            Đang chạy chế độ mock: kết quả của Claude lấy từ dữ liệu mẫu (fixtures), không phải đọc từ ảnh thật.
-          </AlertDescription>
-        </Alert>
+        <Notice tone="info">Đang chạy chế độ mock: kết quả của Claude lấy từ dữ liệu mẫu (fixtures), không phải đọc từ ảnh thật.</Notice>
       )}
 
-      {hasItems && <SummaryBar summary={summary} />}
+      <SummaryBar summary={summary} paused={session.authExpired} />
+
+      <ProcessingList processing={processing} queued={queued} paused={session.authExpired} />
 
       {errors.length > 0 && (
-        <details open className="group space-y-3">
-          <summary className="cursor-pointer text-lg font-semibold text-red-700">Lỗi ({errors.length})</summary>
-          <div className="mt-3 space-y-3">
-            {errors.map((item) => item.response && <ResultCard key={item.id} name={item.name} objectUrl={item.objectUrl} result={item.response.result} />)}
-          </div>
-        </details>
+        <ResultGroup title="Lỗi" count={errors.length} tone="red" defaultOpen>
+          {errors.map((item) => item.response && <ResultCard key={item.id} name={item.name} objectUrl={item.objectUrl} result={item.response.result} />)}
+        </ResultGroup>
       )}
 
       {warnings.length > 0 && (
-        <details className="group space-y-3">
-          <summary className="cursor-pointer text-lg font-semibold text-amber-700">Nghi ngờ ({warnings.length})</summary>
-          <div className="mt-3 space-y-3">
-            {warnings.map((item) => item.response && <ResultCard key={item.id} name={item.name} objectUrl={item.objectUrl} result={item.response.result} />)}
-          </div>
-        </details>
+        <ResultGroup title="Nghi ngờ" count={warnings.length} tone="amber" defaultOpen={false}>
+          {warnings.map((item) => item.response && <ResultCard key={item.id} name={item.name} objectUrl={item.objectUrl} result={item.response.result} />)}
+        </ResultGroup>
       )}
 
       {failed.length > 0 && (
-        <details open className="space-y-3">
-          <summary className="cursor-pointer text-lg font-semibold">Thất bại ({failed.length})</summary>
-          <div className="mt-3 space-y-2">
-            {failed.length > 1 && (
-              <Button variant="outline" size="sm" onClick={() => session.retry(failed.map((item) => item.id))}>
-                <RotateCcwIcon /> Thử lại tất cả
-              </Button>
-            )}
+        <ResultGroup title="Thất bại" count={failed.length} tone="neutral" defaultOpen>
+          {failed.length > 1 && (
+            <Button variant="outline" size="sm" onClick={() => session.retry(failed.map((item) => item.id))}>
+              <RotateCcwIcon /> Thử lại tất cả
+            </Button>
+          )}
+          <div className="divide-y rounded-xl border bg-card" data-testid="failed-list">
             {failed.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 rounded-lg border p-3">
-                <MockupThumbnail src={item.objectUrl} name={item.name} className="size-14" />
+              <div key={item.id} className="flex items-center gap-3 p-3">
+                <MockupThumbnail src={item.objectUrl} name={item.name} className="size-12" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium" title={item.name}>
+                  <p className="truncate font-mono text-xs" title={item.name}>
                     {item.name}
                   </p>
                   <p className="text-sm text-muted-foreground">{item.error}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => session.retry([item.id])}>
+                <Button variant="ghost" size="sm" onClick={() => session.retry([item.id])}>
                   <RotateCcwIcon /> Thử lại
                 </Button>
               </div>
             ))}
           </div>
-        </details>
+        </ResultGroup>
       )}
 
       <AlertDialog open={confirmEnd} onOpenChange={setConfirmEnd}>

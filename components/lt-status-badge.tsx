@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useSession } from "@/components/session/session-provider";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type Status = "checking" | "online" | "offline";
@@ -20,7 +19,7 @@ const LABELS: Record<Status | "expired", string> = {
 };
 
 const DOT_CLASSES: Record<Status | "expired", string> = {
-  checking: "bg-muted-foreground",
+  checking: "bg-muted-foreground/60",
   online: "bg-emerald-500",
   offline: "bg-red-500",
   expired: "bg-red-500",
@@ -62,9 +61,16 @@ export function LtStatusBadge() {
 
   const shown = authExpired ? "expired" : status;
   return (
-    <Badge variant="outline" className="gap-1.5" aria-live="polite">
-      <span className={cn("size-2 rounded-full", DOT_CLASSES[shown])} aria-hidden />
+    <span
+      data-slot="badge"
+      className={cn(
+        "mr-1 hidden items-center gap-1.5 rounded-full px-2 py-1 text-xs text-muted-foreground sm:inline-flex",
+        shown === "expired" && "text-red-600 dark:text-red-400",
+      )}
+      aria-live="polite"
+    >
+      <span className={cn("size-1.5 rounded-full", DOT_CLASSES[shown])} aria-hidden />
       {LABELS[shown]}
-    </Badge>
+    </span>
   );
 }
