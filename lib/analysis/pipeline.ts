@@ -1,5 +1,6 @@
 import type { ClaudeAnalysis, ClaudeBlock, Severity } from "@/lib/claude/schema";
 import type { DictionaryMatcher } from "@/lib/dictionary/matcher";
+import { splitWords } from "@/lib/dictionary/split-words";
 import { isLanguage, type Language } from "@/lib/languages";
 import { applyLtLanguageRules, ltLabelVi } from "./languagetool-rules";
 import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, isAllCaps } from "./text-case";
@@ -102,9 +103,28 @@ function ltIssues(analysis: ClaudeAnalysis, matches: readonly LtBlockMatch[]): D
 }
 
 /** Words in the team dictionary are never errors, whichever source flagged them. */
+const SPELLING_TYPES = new Set<string>(["spelling", "capitalization", "accent"]);
+
+/**
+ * Spelling-type issues are the only ones the team dictionary applies to: Claude's
+ * spelling/capitalization/accent, LanguageTool's misspelling. A grammar error on a word
+ * (YOUR → YOU'RE, petites chose) is not explained away by that word being in the dictionary.
+ */
+export function isSpellingIssue(issue: Pick<Issue, "type" | "ltIssueType">): boolean {
+  return issue.type !== null ? SPELLING_TYPES.has(issue.type) : issue.ltIssueType === "misspelling";
+}
+
+/**
+ * A spelling-type issue whose text is in the team dictionary: the whole `original`, or, when
+ * it spans several words ("HAIDA NATION"), every one of its words.
+ */
 function inDictionary(issue: DraftIssue, analysis: ClaudeAnalysis, dictionary: DictionaryMatcher): boolean {
+  if (!isSpellingIssue(issue)) return false;
   const language = blockLanguage(analysis.blocks[issue.blockIndex], analysis);
-  return language !== undefined && dictionary.has(issue.original.trim(), language);
+  if (language === undefined) return false;
+  if (dictionary.has(issue.original.trim(), language)) return true;
+  const words = splitWords(issue.original);
+  return words.length > 0 && words.every((word) => dictionary.has(word, language));
 }
 
 const overlaps = (a: DraftIssue, b: DraftIssue) =>

@@ -1,0 +1,31 @@
+{
+  "description": "en-US: two-word proper noun HAIDA NATION flagged as spelling (warning); for 'Thêm từng từ…'.",
+  "match": ["tribe-phrase"],
+  "pick_randomly": false,
+  "usage": { "input_tokens": 1840, "output_tokens": 400 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "en-US",
+        "blocks": [
+          { "index": 0, "text": "HAIDA NATION PRIDE", "role": "headline", "language": "en-US", "legibility": "clear" }
+        ],
+        "issues": [
+          {
+            "block_index": 0,
+            "original": "HAIDA NATION",
+            "occurrence": null,
+            "type": "spelling",
+            "severity": "warning",
+            "intentional_possible": true,
+            "explanation_vi": "Có thể là tên riêng (bộ tộc Haida). Nếu đúng, thêm từng từ vào từ điển để lần sau không bị báo.",
+            "suggestions": []
+          }
+        ],
+        "notes_vi": null
+      }
+    }
+  ]
+}

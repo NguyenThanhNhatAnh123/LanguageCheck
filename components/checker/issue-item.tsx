@@ -1,21 +1,31 @@
 import { ArrowRightIcon } from "lucide-react";
 import { AddToDictionaryButton } from "@/components/dictionary/add-to-dictionary-button";
+import { AddWordsPopover } from "@/components/dictionary/add-words-popover";
 import { SeverityBadge } from "@/components/status-badge";
 import { sourceLabel } from "@/lib/analysis/labels";
+import { isSpellingIssue } from "@/lib/analysis/pipeline";
 import type { Issue } from "@/lib/analysis/types";
+import { splitWords } from "@/lib/dictionary/split-words";
 import type { Language } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 import { UNDERLINE_CLASSES } from "./highlighted-text";
 
-/** Only single words go into the dictionary (not phrases, not unreadable [?] spots). */
-function canAddToDictionary(issue: Issue): boolean {
-  const word = issue.original.trim();
-  return word.length > 0 && word.length <= 100 && !/\s/.test(word) && !word.includes("[?]") && issue.type !== "ocr_uncertain";
+/**
+ * What the dictionary action offers for this issue: one word, several words (picked one by
+ * one), or nothing. Nothing for spots Claude could not read ([?], ocr_uncertain) and for
+ * non-spelling issues, which the dictionary does not apply to (see isSpellingIssue).
+ */
+function dictionaryChoice(issue: Issue): { kind: "word"; word: string } | { kind: "words"; words: string[] } | null {
+  if (!isSpellingIssue(issue) || issue.original.includes("[?]")) return null;
+  const words = splitWords(issue.original).filter((word) => word.length <= 100);
+  if (words.length === 1) return { kind: "word", word: words[0] };
+  return words.length > 1 ? { kind: "words", words } : null;
 }
 
 export function IssueItem({ issue, language }: { issue: Issue; language: Language | null }) {
   const ltOnly = !issue.sources.includes("claude");
   const notes = issue.suggestions.filter((suggestion) => suggestion.noteVi);
+  const choice = language ? dictionaryChoice(issue) : null;
 
   return (
     <li className="space-y-2 py-3 first:pt-0 last:pb-0">
@@ -66,9 +76,13 @@ export function IssueItem({ issue, language }: { issue: Issue; language: Languag
         <span>Nguồn: {sourceLabel(issue.sources)}</span>
         {issue.intentionalPossible && <span>· Có thể cố ý</span>}
         {issue.start === null && <span>· Không định vị được trong chữ</span>}
-        {language && canAddToDictionary(issue) && (
+        {language && choice && (
           <span className="ml-auto">
-            <AddToDictionaryButton word={issue.original.trim()} language={language} />
+            {choice.kind === "word" ? (
+              <AddToDictionaryButton word={choice.word} language={language} />
+            ) : (
+              <AddWordsPopover words={choice.words} language={language} />
+            )}
           </span>
         )}
       </div>

@@ -118,6 +118,39 @@ describe("dictionary filter", () => {
     expect(filtered.status).toBe("ok");
   });
 
+  it("removes a multi-word spelling issue once every word is in the dictionary", () => {
+    const claude = analysis("en-US", ["HAIDA NATION PRIDE"], [{ original: "HAIDA NATION", type: "spelling", severity: "warning" }]);
+    const one = createDictionaryMatcher([{ language: "en-US", wordKey: "haida" }]);
+    const both = createDictionaryMatcher([
+      { language: "en-US", wordKey: "haida" },
+      { language: "en-US", wordKey: "nation" },
+    ]);
+    expect(run(claude, [], one).issues).toHaveLength(1);
+    expect(run(claude, [], both).issues).toEqual([]);
+  });
+
+  it("never removes a grammar issue on a dictionary word", () => {
+    const claude = analysis("en-US", ["YOUR THE BEST"], [{ original: "YOUR", type: "grammar" }]);
+    const dictionary = createDictionaryMatcher([{ language: "en-US", wordKey: "your" }]);
+    expect(run(claude, [lt(0, 0, 4, "grammar", ["YOU'RE"])], dictionary).issues).toHaveLength(1);
+  });
+
+  it("removes LanguageTool misspellings but keeps its grammar matches", () => {
+    const dictionary = createDictionaryMatcher([{ language: "fr-FR", wordKey: "chose" }]);
+    const claude = analysis("fr-FR", ["Les petites chose"], []);
+    expect(run(claude, [lt(0, 12, 17, "misspelling", ["choses"])], dictionary).issues).toEqual([]);
+    expect(run(claude, [lt(0, 12, 17, "grammar", ["choses"])], dictionary).issues).toHaveLength(1);
+  });
+
+  it("keeps a multi-word grammar issue even if every word is in the dictionary", () => {
+    const claude = analysis("fr-FR", ["Les petites chose"], [{ original: "petites chose", type: "grammar" }]);
+    const dictionary = createDictionaryMatcher([
+      { language: "fr-FR", wordKey: "petites" },
+      { language: "fr-FR", wordKey: "chose" },
+    ]);
+    expect(run(claude, [], dictionary).issues).toHaveLength(1);
+  });
+
   it("only applies to the dictionary's language", () => {
     const claude = analysis("de-DE", ["HAIDA"], [{ original: "HAIDA" }]);
     expect(run(claude, [], dictionary).issues).toHaveLength(1);
