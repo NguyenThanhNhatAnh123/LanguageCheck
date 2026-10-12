@@ -1,10 +1,15 @@
 import { z } from "zod";
+import type { AnalyzeApiResponse } from "@/lib/analysis/api-types";
+import { analyzeTexts } from "@/lib/analysis/pipeline";
+import { runLanguageTool } from "@/lib/analysis/run-languagetool";
+import type { AnalysisInput } from "@/lib/analysis/types";
 import { hasValidSession, unauthorizedResponse } from "@/lib/auth/require-session";
 import { analyzeWithClaude, CLAUDE_FAILURE_MESSAGES } from "@/lib/claude/analyze";
 import { ClaudeConfigError } from "@/lib/claude/config";
 import { getClaudeRuntime, type ClaudeRuntime } from "@/lib/claude";
 import { buildSystemPrompt } from "@/lib/claude/prompt";
 import { ACCEPTED_IMAGE_TYPES, type ImageMediaType } from "@/lib/claude/transport";
+import { createDictionaryMatcher } from "@/lib/dictionary/matcher";
 import { listDictionaryEntries } from "@/lib/dictionary/repository";
 import { recordUsage } from "@/lib/usage";
 
@@ -53,11 +58,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "Máy chủ chưa cấu hình Claude. Báo người quản trị." }, { status: 500 });
   }
 
+  const dictionary = listDictionaryEntries();
+
+  // 1. Claude: transcription + proofreading.
   const outcome = await analyzeWithClaude(
     {
       image: { data: Buffer.from(await image.arrayBuffer()), mediaType: image.type },
       fileName: fileName.data,
-      systemPrompt: buildSystemPrompt(listDictionaryEntries()),
+      systemPrompt: buildSystemPrompt(dictionary),
     },
     { transport: runtime.transport, maxConcurrency: runtime.maxConcurrency },
   );
@@ -72,7 +80,15 @@ export async function POST(request: Request) {
       reason: outcome.reason,
       error: CLAUDE_FAILURE_MESSAGES[outcome.reason],
       attempts: outcome.attempts,
-    });
+    } satisfies AnalyzeApiResponse);
+  }
+
+  // 2. LanguageTool on the transcribed blocks; 3–4. filter, merge, status, corrected text.
+  const lt = await runLanguageTool(outcome.analysis.blocks);
+  const input: AnalysisInput = { claude: outcome.analysis, ltMatches: lt.matches, ltStatus: lt.status };
+  const { result, claudeIssuesNotFound } = analyzeTexts(input, createDictionaryMatcher(dictionary));
+  if (claudeIssuesNotFound > 0) {
+    console.warn(`[analyze] ${claudeIssuesNotFound} Claude issue(s) not found in their block, downgraded to warning`);
   }
 
   return Response.json({
@@ -81,6 +97,7 @@ export async function POST(request: Request) {
     model: outcome.model,
     attempts: outcome.attempts,
     usage: outcome.usage,
-    claude: outcome.analysis,
-  });
+    input,
+    result,
+  } satisfies AnalyzeApiResponse);
 }
