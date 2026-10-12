@@ -208,6 +208,35 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
   - Thiếu dấu làm đổi nghĩa (`TU/TÚ`, `SI/SÍ`, `EL/ÉL`, `MAS/MÁS`) → `error`. Với LanguageTool: `original` là một trong 4 từ này và có phương án chỉ khác ở dấu. Các từ thiếu dấu khác vẫn theo bảng quy đổi (LanguageTool thường báo `misspelling` → `error`).
 - Thuật ngữ Native American, tên bộ tộc, tên thương hiệu, tên riêng: không bao giờ báo lỗi nếu có trong từ điển.
 
+## Giao diện
+
+Áp dụng cho **mọi trang** (hiện có và sau này).
+
+- **Phong cách:** tối giản hiện đại, lấy tinh thần Vercel/ChatGPT. Không chép logo, màu thương hiệu hay bố cục y hệt.
+- **Font:**
+  - Chữ giao diện: Inter (`next/font/google`), subsets `latin`, `latin-ext`, `vietnamese`.
+  - Tên file và chữ trích từ mockup: JetBrains Mono (`font-mono`), subsets `latin`, `latin-ext` (đủ É ü ñ ß ¿ ¡), thêm `vietnamese` vì tên file có thể là tiếng Việt.
+- **Icon:** `lucide-react`. **Component:** shadcn/ui. **Toast:** sonner (`toast` từ `sonner`, `<Toaster>` gắn ở root layout). **Phóng to ảnh:** Dialog.
+- **Màu:**
+  - Thang xám zinc (biến CSS trong `app/globals.css`), viền mảnh, hầu như không đổ bóng.
+  - Trạng thái dùng badge/chấm nhạt (`components/status-badge.tsx`): đỏ = Lỗi, vàng = Nghi ngờ, xanh = Không lỗi, xám = còn lại.
+  - Sáng/tối theo hệ thống (`next-themes`, class `dark` trên `<html>`). Nút trên header đổi vòng: theo hệ thống → sáng → tối.
+- **Bố cục:**
+  - Header mỏng (cao 48px, sticky): tên tool, badge LanguageTool, nút đổi theme, đăng xuất.
+  - Nội dung căn giữa `max-w-5xl`.
+  - Chưa có ảnh: vùng kéo thả lớn `rounded-2xl` ở giữa màn hình với câu hướng dẫn ngắn. Đã có ảnh: vùng kéo thả thu gọn thành một thanh.
+  - Thẻ mockup `rounded-xl`, khoảng trắng rộng.
+  - Banner dùng `components/notice.tsx` (một dòng, có icon, tông info/warning/error).
+- **Chi tiết:**
+  - Gạch chân lượn sóng dưới chữ sai: đỏ = lỗi, vàng = nghi ngờ (ghi chú: chấm xám).
+  - Phương án sửa dạng chip; chip đầu tiên (phương án sẽ áp vào "Chữ sau khi sửa") tô xanh.
+  - Skeleton cho ảnh đang xử lý, kèm số ảnh đang chờ.
+  - Chuyển động 150–200ms.
+  - Số đếm dùng `tabular-nums`.
+  - Focus ring rõ ràng: component shadcn có sẵn; phần tử tự làm (ảnh thu nhỏ, `<summary>`, link) dùng class `focus-ring`.
+  - Trang `/login` gọn, căn giữa.
+- Ảnh thu nhỏ đặt trên nền ô bàn cờ xám (`bg-checkerboard`) để thiết kế nền trong suốt vẫn nhìn thấy được.
+
 ## Stack và quy ước code
 
 - Next.js (App Router) + TypeScript strict + Tailwind + shadcn/ui

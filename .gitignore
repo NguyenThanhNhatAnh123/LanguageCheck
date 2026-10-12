@@ -24,3 +24,6 @@ test-images/
 .DS_Store
 *.pem
 .vercel
+
+# UI screenshots for review (not committed)
+/screenshots/

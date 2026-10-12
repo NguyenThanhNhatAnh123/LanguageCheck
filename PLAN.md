@@ -200,6 +200,7 @@ Làm Giai đoạn 4 theo mục "Luồng xử lý" và "Thẻ mockup lỗi" trong
 Làm Giai đoạn 5:
 - Nút "Thêm vào từ điển" trên từng lỗi: lưu từ (đúng ngôn ngữ) bằng addDictionaryWord() trong lib/dictionary (đã có từ Giai đoạn 1: tự tính word_key; từ đã có thì trả created = false, báo "Từ này đã có trong từ điển"). Rồi lọc lại ngay các mockup trong phiên ở client bằng createDictionaryMatcher() (lỗi đó biến mất, status tính lại).
 - Trang /dictionary: xem/thêm/xóa từ theo ngôn ngữ, ghi chú, import/export CSV. Import cũng đi qua addDictionaryWord() để không tạo bản trùng.
+- /dictionary và /usage theo mục "Giao diện" trong CLAUDE.md; thêm link vào header. Chuyển qua lại giữa các trang không được mất phiên kiểm tra (SessionProvider ở root layout).
 - Trang /usage: bảng usage_daily (số ảnh, token vào/ra theo ngày) + tổng tháng này.
 - Script `npm run eval`: chạy toàn bộ test-images, so với test-images/expected.csv, in tỉ lệ bắt đúng và tỉ lệ báo nhầm.
 ```
