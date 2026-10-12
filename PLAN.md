@@ -231,9 +231,9 @@ Làm Giai đoạn 6:
 - Rà soát bảo mật: mọi route kiểm tra phiên; không log nội dung ảnh, chữ hay secret; app chỉ lắng nghe 127.0.0.1.
 ```
 
-**Bạn tự làm trên máy server:**
+**Bạn tự làm trên máy server** (lệnh đầy đủ ở `README.md`, mục "Cài lên máy server"; mọi lệnh chạy trong PowerShell quyền Administrator):
 
-1. Clone repo về `C:\pod-qa`, tạo `.env.local` theo `.env.example` (mật khẩu tạo bằng `npm run hash-password`), rồi chạy `npm ci` và `npm run build`.
+1. Clone repo về `C:\pod-qa`, chạy `npm ci`, tạo `.env.local` theo `.env.example` (mật khẩu tạo bằng `npm run hash-password`), khóa quyền đọc file bằng `icacls`. Kiểm tra bằng `scripts\deploy.ps1 -NoService -CheckOnly`. Rồi chạy `npm run build` và `npm run db:migrate`.
 2. Cài app thành service:
    ```powershell
    nssm install PodQA "<đường dẫn node.exe>" "node_modules\next\dist\bin\next start -H 127.0.0.1 -p 3000"
@@ -241,18 +241,34 @@ Làm Giai đoạn 6:
    nssm set PodQA Start SERVICE_AUTO_START
    nssm set PodQA AppStdout C:\pod-qa\app.log
    nssm set PodQA AppStderr C:\pod-qa\app.log
+   nssm set PodQA AppRotateFiles 1
+   nssm set PodQA AppRotateOnline 1
+   nssm set PodQA AppRotateBytes 10485760
+   nssm set PodQA AppRestartDelay 5000
    nssm start PodQA
    ```
-   Kiểm tra bằng cách mở `http://localhost:3000` trên máy server.
+   Kiểm tra bằng cách mở `http://127.0.0.1:3000` trên máy server. Cấu hình sai (thiếu key, hash mật khẩu sai, `SESSION_SECRET` ngắn, có `CLAUDE_MOCK=1`) thì app dừng ngay và ghi lý do vào `app.log`.
 3. Tạo Cloudflare Tunnel:
    - Vào Cloudflare **Zero Trust → Networks → Tunnels → Create a tunnel** → chọn **Cloudflared** → đặt tên `pod-qa` → chọn **Windows**.
    - Chạy lệnh `cloudflared.exe service install <TOKEN>` mà Cloudflare hiển thị.
-   - Ở bước định tuyến (Public hostname / Published application): subdomain `qa`, domain của bạn, service `HTTP` → `localhost:3000`.
+   - Ở bước định tuyến (Public hostname / Published application): subdomain `qa`, domain của bạn, service `HTTP` → **`127.0.0.1:3000`** (không dùng `localhost:3000`: app chỉ nghe IPv4, trên Windows `localhost` có thể được phân giải sang IPv6 trước).
    - **Không** tạo route nào trỏ tới cổng 8081 (LanguageTool).
-4. Kiểm tra từ điện thoại (dùng 4G, không bắt wifi văn phòng):
+4. Đăng ký lịch sao lưu hằng đêm bằng Task Scheduler (lệnh ở README, mục "Lịch sao lưu"), rồi chạy thử một lần bằng `Start-ScheduledTask`.
+5. Kiểm tra từ điện thoại (dùng 4G, không bắt wifi văn phòng):
    - Mở `https://qa.<domain>` thì phải hiện trang đăng nhập.
    - Đăng nhập, tải thử 5 mockup.
-5. **Khởi động lại máy server** mà không đăng nhập Windows. Đợi 2 phút rồi mở lại `https://qa.<domain>`: phải vào được và badge LanguageTool màu xanh.
+6. **Khởi động lại máy server** mà không đăng nhập Windows. Đợi 2 phút rồi mở lại `https://qa.<domain>`: phải vào được và badge LanguageTool màu xanh.
+
+**Trạng thái (2026-10-12):** phần code đã xong, phần trên máy server chưa làm.
+- `scripts/deploy.ps1`: kiểm tra trước (quyền Administrator, NSSM, service, Node ≥ 24 / npm ≥ 11.19, `.env.local` đủ biến và không có `CLAUDE_MOCK=1`) rồi mới dừng service. Thứ tự: git pull → dừng service → `npm ci` → build → sao lưu DB → migration → chạy service → đợi `/login` trả lời 200 (tối đa 60 giây, không được thì in 30 dòng cuối `app.log`). Có `-CheckOnly`, `-SkipPull`, `-NoService`. Đã chạy thử phần kiểm tra với 5 trường hợp; các bước dừng/chạy service chỉ chạy thử được trên máy server.
+- `scripts/backup-dictionary.ps1` + `npm run db:backup`: **khác với prompt ở trên**, không copy file `app.db` thô. DB chạy chế độ WAL nên copy thô có thể thiếu dữ liệu còn trong file `-wal` (đã thử: bản copy thô thấy 0 từ, bản backup thấy đủ 1 từ). Dùng SQLite backup API (an toàn khi app đang chạy), kiểm tra `integrity_check`, ra một file duy nhất, giữ 30 bản mới nhất.
+- Rà soát bảo mật:
+  - Mọi route API tự kiểm tra phiên, có test `app/api/routes-auth.test.ts` canh cho route mới.
+  - Log: lỗi không rõ nguồn gốc chỉ ghi tên loại lỗi, không ghi message (có thể chứa nội dung phản hồi).
+  - App và LanguageTool chỉ nghe 127.0.0.1 (`LT_URL` mặc định đổi sang `127.0.0.1`).
+  - Bản production kiểm tra cấu hình đăng nhập ngay lúc khởi động.
+  - Thêm header bảo mật cơ bản và bỏ `X-Powered-By`.
+  - Chuyển CLI `shadcn` sang devDependencies: `npm audit --omit=dev` còn 0 lỗ hổng (trước đó 7 lỗ hổng mức high, đều đến từ CLI này).
 
 ---
 

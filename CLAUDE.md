@@ -23,7 +23,7 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
                                                          │
                                          Máy Windows 24/7 tại văn phòng
                                          ├─ Next.js app      127.0.0.1:3000   (Windows service, NSSM)
-                                         ├─ LanguageTool     localhost:8081   (Windows service, NSSM)
+                                         ├─ LanguageTool     127.0.0.1:8081   (Windows service, NSSM)
                                          ├─ SQLite: data/app.db (chỉ từ điển + thống kê chi phí)
                                          └─ cloudflared                       (Windows service)
                                                          │
@@ -31,7 +31,9 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
 ```
 
 - Next.js chạy `next start -H 127.0.0.1 -p 3000`, **chỉ lắng nghe localhost**. Từ bên ngoài chỉ vào được qua Cloudflare Tunnel.
-- LanguageTool chỉ lắng nghe localhost, **không đưa ra internet**. Chỉ server Next.js gọi tới nó.
+- LanguageTool chỉ lắng nghe localhost, **không đưa ra internet**. Chỉ server Next.js gọi tới nó, qua `127.0.0.1` (không dùng `localhost`, vì trên Windows `localhost` có thể được phân giải sang IPv6 trước). Route của Cloudflare Tunnel cũng trỏ tới `127.0.0.1:3000`.
+- Mọi response có header bảo mật cơ bản (`X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`) và không có `X-Powered-By` (`next.config.ts`). Không dùng CSP vì script inline của Next.js cần nonce theo từng request.
+- Triển khai bằng `scripts/deploy.ps1`; sao lưu DB bằng `scripts/backup-dictionary.ps1` (SQLite backup API, không copy file thô vì DB chạy chế độ WAL). Hướng dẫn ở `README.md`.
 - Không dùng Vercel, Blob, Postgres hay Cloudflare Access.
 
 ## Đăng nhập: 1 tài khoản chung
@@ -40,7 +42,7 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
   - Hash mật khẩu bằng bcrypt hoặc argon2, rồi **mã hóa base64** trước khi đặt vào `.env`. Lý do: Next.js tự hiểu dấu `$` trong `.env` là biến, sẽ làm hỏng chuỗi hash.
   - Có script `npm run hash-password` để tạo giá trị này.
 - Đăng nhập đúng thì tạo cookie phiên đã ký (`SESSION_SECRET`): `httpOnly`, `secure`, `sameSite=lax`, hạn 30 ngày. Cookie chứa `SESSION_VERSION`. Muốn đá văng mọi máy đang đăng nhập (ví dụ khi đổi mật khẩu) thì tăng `SESSION_VERSION`.
-- Middleware chặn mọi route trừ `/login` và static. Mọi route API đều kiểm tra phiên.
+- Proxy (`proxy.ts`) chặn mọi route trừ `/login` và static. Mọi route API **tự** kiểm tra phiên ở từng handler (`if (!(await hasValidSession())) return unauthorizedResponse();`); test `app/api/routes-auth.test.ts` bắt lỗi nếu route mới quên. Route công khai duy nhất: `/api/auth/login` và `/api/auth/logout`.
 - Chống dò mật khẩu: sai 5 lần thì khóa 15 phút theo IP. Lấy IP từ header `CF-Connecting-IP`, lưu trong bộ nhớ là đủ.
 - Không có tài khoản riêng từng người, không có bước chọn tên.
 
@@ -159,7 +161,7 @@ Các hàm quy đổi, gắn nhãn, merge, xử lý phương án sửa, tính `st
 - **Claude trả lỗi 429/529**: retry với backoff. Do SDK tự làm (`maxRetries: 3`, có tôn trọng `retry-after`); lỗi vẫn còn sau đó thì trả `failed`.
 - **JSON từ Claude sai schema** (kể cả `block_index` trỏ tới block không tồn tại, `original` rỗng): retry 1 lần, vẫn sai thì trả `failed`.
 - **Claude từ chối** (`stop_reason = "refusal"`): trả `failed`, không retry.
-- **Production thiếu cấu hình Claude** (không có `ANTHROPIC_API_KEY`, thiếu `CLAUDE_MODEL`, hoặc có `CLAUDE_MOCK=1`): server **dừng ngay khi khởi động** (`process.exit(1)`), log ghi rõ thiếu biến nào. Lý do: nếu chỉ ném lỗi, Next.js vẫn chạy tiếp ở trạng thái hỏng.
+- **Production thiếu cấu hình** (không có `ANTHROPIC_API_KEY`, thiếu `CLAUDE_MODEL`, có `CLAUDE_MOCK=1`, thiếu biến đăng nhập, `SESSION_SECRET` ngắn hơn 32 ký tự, hoặc `APP_PASSWORD_HASH_B64` không phải bcrypt mã hóa base64): server **dừng ngay khi khởi động** (`process.exit(1)`), log ghi rõ biến nào sai (chỉ tên, không ghi giá trị). Lý do: nếu chỉ ném lỗi, Next.js vẫn chạy tiếp ở trạng thái hỏng.
 - **Claude bị cắt giữa chừng** (`stop_reason = "max_tokens"`): `max_tokens` mặc định ~3000. Bị cắt thì retry 1 lần với giới hạn gấp đôi (~6000), vì retry y nguyên sẽ bị cắt đúng chỗ cũ. Vẫn bị cắt thì trả `failed`.
 - **Giới hạn đồng thời**: server cho phép tối đa `CLAUDE_MAX_CONCURRENCY` lời gọi Claude cùng lúc, chung cho mọi người dùng.
 
@@ -272,7 +274,7 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
   - Text hiển thị cho người dùng viết bằng tiếng Việt.
   - Tên biến, code và commit viết bằng tiếng Anh.
 - Commit nhỏ.
-- Không log nội dung ảnh, chữ đọc được hay secret. Chỉ log số lượng và lỗi kỹ thuật.
+- Không log nội dung ảnh, chữ đọc được hay secret. Chỉ log số lượng và lỗi kỹ thuật. Lỗi do code mình tạo (`LanguageToolError`, `ClaudeTransportError`) được ghi message; lỗi khác chỉ ghi tên loại lỗi, vì message của chúng có thể trích nội dung phản hồi.
 
 ## Biến môi trường (`.env.local` trên máy server)
 
@@ -282,7 +284,7 @@ CLAUDE_MODEL=claude-sonnet-5-5
 CLAUDE_MAX_CONCURRENCY=8
 CLAUDE_ANALYZE_EFFORT=low
 CLAUDE_MOCK=
-LT_URL=http://localhost:8081
+LT_URL=http://127.0.0.1:8081
 APP_USERNAME=
 APP_PASSWORD_HASH_B64=
 SESSION_SECRET=
