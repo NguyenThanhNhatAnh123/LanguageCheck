@@ -13,9 +13,14 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
             POD Text QA
           </Link>
           {isDev && (
-            <Link href="/lt-test" className="text-sm text-muted-foreground hover:text-foreground">
-              Thử LanguageTool
-            </Link>
+            <>
+              <Link href="/lt-test" className="text-sm text-muted-foreground hover:text-foreground">
+                Thử LanguageTool
+              </Link>
+              <Link href="/dev/analyze" className="text-sm text-muted-foreground hover:text-foreground">
+                Thử phân tích
+              </Link>
+            </>
           )}
           <div className="ml-auto flex items-center gap-3">
             <LtStatusBadge />
