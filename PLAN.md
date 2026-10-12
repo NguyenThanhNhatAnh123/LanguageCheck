@@ -157,6 +157,8 @@ Làm Giai đoạn 3 theo CLAUDE.md:
 - Áo slang (ví dụ `GONNA`) không bị xếp vào nhóm Lỗi. Mockup chỉ có issue `info` nằm trong nhóm Không lỗi.
 - Áo chữ in hoa có lỗi: mọi phương án sửa và "Chữ sau khi sửa" đều in hoa toàn bộ.
 
+**Trạng thái (2026-10-12):** đã xong, chạy bằng mock Claude + LanguageTool thật. 120 unit test qua. Chạy cả 11 fixture qua `/api/analyze`: lỗi thật en/de/fr/es → `error` (gộp cả 2 nguồn), `GONNA` và `ETE` → `ok`, `ocr-uncertain` và `HAIDA` → `warning`, chữ sau khi sửa của khối in hoa vẫn in hoa. Tắt LanguageTool → vẫn có kết quả với `ltStatus = "offline"`. Khi có API key, chạy lại các mục trên với Claude thật (xem danh sách ở Giai đoạn 2).
+
 ---
 
 ## Giai đoạn 4 — Màn hình chính: tải lên hàng loạt, chỉ hiện mockup lỗi

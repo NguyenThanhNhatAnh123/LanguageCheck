@@ -52,9 +52,11 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
 3. Server xử lý trong bộ nhớ, theo thứ tự:
    1. **Gọi Claude** vision với prompt trong `docs/claude-analyze-prompt.md`, có từ điển team trong system prompt. Validate kết quả bằng zod. Định vị từng issue: tìm lần xuất hiện thứ `occurrence` (thiếu thì mặc định 1) của `original` trong `blocks[block_index].text`.
    2. **Gọi LanguageTool.** Gom các block theo `blocks[].language`. Với mỗi ngôn ngữ, nối text các block bằng `"\n"`, gửi `POST {LT_URL}/v2/check` (form-urlencoded: `text`, `language`), rồi map `offset/length` ngược về từng block. Block `unknown` không gửi LanguageTool, chỉ dùng kết quả Claude.
-   3. **Lọc và quy đổi.** Bỏ các match chính tả có từ nằm trong từ điển (đúng ngôn ngữ, so theo `word_key`). Quy đổi severity theo mục "Quy đổi severity LanguageTool", rồi áp các quy tắc ngôn ngữ ở dưới.
+   3. **Lọc và quy đổi.** Bỏ các issue có `original` nằm trong từ điển (đúng ngôn ngữ, so theo `word_key`). Áp cho **cả 2 nguồn**, để thêm từ vào từ điển thì lỗi Claude báo cũng biến mất. Quy đổi severity theo mục "Quy đổi severity LanguageTool", rồi áp các quy tắc ngôn ngữ ở dưới. Match của LanguageTool nằm trên chỗ `[?]` (chữ Claude không đọc được) thì bỏ, vì sự không chắc chắn đó đã có issue `ocr_uncertain` của Claude.
+      - Gọi LanguageTool lỗi ở bất kỳ ngôn ngữ nào thì coi cả lượt là `offline` và bỏ toàn bộ kết quả LanguageTool của ảnh đó, không trộn kết quả nửa vời.
    4. **Merge 2 nguồn**, xử lý phương án sửa, áp quy tắc "chữ in hoa thiếu dấu" của fr-FR, rồi tính `status` và "Chữ sau khi sửa".
    5. **Trả JSON về client.** Cộng token đã dùng vào bảng thống kê ngày. Buffer ảnh bị bỏ đi.
+      - JSON gồm `result` (kết quả đã tính) và `input` (kết quả thô của Claude và các match LanguageTool đã map về block). Client giữ `input` để chạy lại `analyzeTexts()` (`lib/analysis/pipeline.ts`) khi từ điển thay đổi, không cần gọi lại server. Kiểu dữ liệu ở `lib/analysis/api-types.ts`.
 4. Client gom kết quả vào state và hiển thị:
    - Thanh tổng kết: `Đã kiểm X/Y — Lỗi A — Nghi ngờ B — Không lỗi C — Không có chữ D — Thất bại E`
    - Nhóm **Lỗi** (`error`): mở sẵn
@@ -95,10 +97,12 @@ LanguageTool không có severity. Quy đổi theo `rule.issueType` của từng 
 
 ### Merge 2 nguồn
 
-- Hai issue coi là trùng nhau khi cùng block và vùng chữ giao nhau. Gộp lại thành một issue với `sources = ["lt", "claude"]`.
+- Hai issue coi là trùng nhau khi cùng block và vùng chữ giao nhau. Gộp lại thành một issue với `sources = ["lt", "claude"]`. Một issue của Claude có thể gộp nhiều match LanguageTool.
+- **Vùng chữ của issue đã gộp là hợp của các vùng**, và mọi phương án sửa được dời về vùng chung đó. Ví dụ Claude báo `chose` → `choses`, LanguageTool báo `petites chose` → `petites choses`: issue gộp có `original` là `petites chose`, phương án của Claude thành `petites choses`. Lý do: nếu không dời, áp phương án của LanguageTool vào chỗ `chose` sẽ ra `petites petites choses`.
 - Severity của issue đã gộp:
   - Claude đánh `intentional_possible = true` hoặc severity `info` → **Claude thắng**: lấy severity và `intentional_possible` của Claude. Lý do: Claude hiểu ngữ cảnh, LanguageTool thì không. Ví dụ `GONNA`: LanguageTool báo `misspelling`, Claude báo intentional → issue là `info`, áo không bị đánh lỗi.
-  - Các trường hợp còn lại → lấy severity cao hơn.
+  - Các trường hợp còn lại → lấy severity cao hơn (giữa Claude và match LanguageTool nặng nhất).
+- Issue của Claude không tìm thấy `original` trong block thì không gộp, không highlight, không áp vào "Chữ sau khi sửa", và bị hạ xuống tối đa `warning`.
 - Phương án sửa của issue đã gộp: xem mục "Phương án sửa".
 
 ### Phương án sửa
@@ -112,7 +116,7 @@ LanguageTool không có severity. Quy đổi theo `rule.issueType` của từng 
    - `original` chỉ có 1 chữ cái in hoa (`A`, `I`) → xét cả block: block in hoa toàn bộ thì in hoa toàn bộ, ngược lại viết hoa chữ đầu (`A` → `An`, không thành `AN`).
    - Kiểu khác (ví dụ `McDonald`) → giữ nguyên phương án.
    - Đổi hoa/thường theo locale của block (`toLocaleUpperCase` / `toLocaleLowerCase`). Ví dụ `ß` in hoa thành `SS`, khớp quy tắc de-DE.
-2. **Bỏ trùng, không phân biệt hoa thường.**
+2. **Bỏ trùng, không phân biệt hoa thường.** Bỏ luôn phương án giống hệt `original` (ví dụ Claude gợi ý `HAIDA` cho `HAIDA` nghĩa là "giữ nguyên"; ý đó đã nằm trong giải thích).
 3. **Sắp xếp và giới hạn.** Issue đã gộp: phương án của Claude trước, của LanguageTool sau. Giữ tối đa 3.
 
 ### Cách tính `status`
@@ -120,7 +124,7 @@ LanguageTool không có severity. Quy đổi theo `rule.issueType` của từng 
 Issue `info` vẫn hiện trong thẻ nhưng **không tính vào `status`**.
 
 - `error`: có issue severity `error` được cả 2 nguồn cùng báo, hoặc Claude báo `error` với `intentional_possible = false`
-- `warning`: có issue `error`/`warning` chỉ 1 nguồn báo, hoặc có issue loại `ocr_uncertain`
+- `warning`: còn issue `error`/`warning` nào đó mà không đủ điều kiện `error` ở trên, hoặc có issue loại `ocr_uncertain` (kể cả severity `info`). Gồm: issue chỉ 1 nguồn báo, và issue `warning` cả 2 nguồn cùng báo (ví dụ tên riêng `HAIDA`: Claude báo warning có chủ đích, LanguageTool báo misspelling).
 - `ok`: không có issue `error`/`warning` nào. Mockup chỉ có issue `info` cũng là `ok` (nhóm "Không lỗi").
 - `no_text`: ảnh không có chữ
 - `failed`: lỗi xử lý, trả về kèm lý do
@@ -178,17 +182,18 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
   - Vẫn phải bắt các lỗi kinh điển: your/you're, its/it's, there/their, `ya'll` → `y'all`, lose/loose.
 - **de-DE**
   - Chữ in hoa toàn bộ: bỏ qua quy tắc viết hoa danh từ. `SS` thay cho `ß` là hợp lệ.
+    - Với LanguageTool, áp khi cả block in hoa toàn bộ: bỏ match thuộc category `CASING`, và bỏ match có phương án cùng `word_key` với `original` (tức chỉ khác hoa/thường hoặc `ß`/`ss`).
   - Vẫn phải bắt: sai đuôi từ, sai giống hoặc cách, mất umlaut (`FUR` → `FÜR`).
 - **fr-FR**
   - Thiếu dấu trên chữ in hoa (`ETE` thay vì `ÉTÉ`) → `info`.
     - Cách nhận biết (LanguageTool thường báo những chỗ này là `misspelling`): `original` in hoa toàn bộ, và **bất kỳ** phương án nào trong danh sách đã xử lý (tối đa 3, gồm của cả LanguageTool lẫn Claude) chỉ khác `original` ở dấu. "Chỉ khác ở dấu" nghĩa là bỏ dấu và bỏ phân biệt hoa thường thì giống hệt. Ví dụ phương án `ETC, ÉTÉ` vẫn hạ xuống `info` nhờ `ÉTÉ`.
     - Áp lên issue **sau khi merge** và xử lý phương án sửa, trước khi tính `status`.
     - Quy tắc này **chỉ áp cho fr-FR**. Ở es-ES (`TU` → `TÚ`) và de-DE (`FUR` → `FÜR`), thiếu dấu vẫn là `error`.
-  - Thiếu dấu cách trước `! ? : ;` → `info`.
+  - Thiếu dấu cách trước `! ? : ;` → `info`. Với LanguageTool: match có phương án chỉ khác `original` ở khoảng trắng.
   - Vẫn phải bắt: sai hợp giống/số, sai dấu trên chữ thường.
 - **es-ES**
-  - Thiếu `¿ ¡` → `warning`.
-  - Thiếu dấu làm đổi nghĩa (`TU/TÚ`, `SI/SÍ`, `EL/ÉL`, `MAS/MÁS`) → `error`.
+  - Thiếu `¿ ¡` → `warning`. Với LanguageTool: match có phương án thêm `¿`/`¡`. (Thử thực tế: LanguageTool thường không bắt lỗi này, chủ yếu dựa vào Claude.)
+  - Thiếu dấu làm đổi nghĩa (`TU/TÚ`, `SI/SÍ`, `EL/ÉL`, `MAS/MÁS`) → `error`. Với LanguageTool: `original` là một trong 4 từ này và có phương án chỉ khác ở dấu. Các từ thiếu dấu khác vẫn theo bảng quy đổi (LanguageTool thường báo `misspelling` → `error`).
 - Thuật ngữ Native American, tên bộ tộc, tên thương hiệu, tên riêng: không bao giờ báo lỗi nếu có trong từ điển.
 
 ## Stack và quy ước code
