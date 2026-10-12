@@ -1,0 +1,33 @@
+{
+  "description": "Mixed de/fr/es text with É ü ñ ß ¿ ¡ to check fonts render every character (warning: Grüsse → Grüße).",
+  "match": ["charset"],
+  "pick_randomly": false,
+  "usage": { "input_tokens": 1900, "output_tokens": 520 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "mixed",
+        "blocks": [
+          { "index": 0, "text": "¡Hola! ¿Qué tal, señorita?", "role": "headline", "language": "es-ES", "legibility": "clear" },
+          { "index": 1, "text": "Grüsse aus der Straße", "role": "body", "language": "de-DE", "legibility": "clear" },
+          { "index": 2, "text": "Élégance à la française", "role": "small", "language": "fr-FR", "legibility": "clear" }
+        ],
+        "issues": [
+          {
+            "block_index": 1,
+            "original": "Grüsse",
+            "occurrence": null,
+            "type": "spelling",
+            "severity": "warning",
+            "intentional_possible": false,
+            "explanation_vi": "Chữ thường trong tiếng Đức (chuẩn Đức) viết là \"Grüße\" với ß. \"Grüsse\" là cách viết kiểu Thụy Sĩ.",
+            "suggestions": [{ "text": "Grüße", "note_vi": null }]
+          }
+        ],
+        "notes_vi": null
+      }
+    }
+  ]
+}
