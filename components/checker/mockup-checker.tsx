@@ -1,7 +1,7 @@
 "use client";
 
 import { RotateCcwIcon, XIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -13,57 +13,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { analyzeImage, type AnalyzeSuccess } from "@/lib/client/analyze-image";
-import type { CollectResult, PickedImage } from "@/lib/client/collect-files";
-import { TaskQueue } from "@/lib/client/task-queue";
+import { useSession, type SessionItem } from "@/components/session/session-provider";
+import type { AnalyzeSuccess } from "@/lib/client/analyze-image";
+import type { CollectResult } from "@/lib/client/collect-files";
 import { MockupThumbnail } from "./mockup-thumbnail";
 import { ResultCard } from "./result-card";
 import { SummaryBar, type SessionSummary } from "./summary-bar";
 import { UploadZone } from "./upload-zone";
 
-// Results live only in this component's state: closing the tab, reloading or
-// "Kết thúc phiên" loses them, by design (CLAUDE.md "Nguyên tắc sản phẩm").
-
-const MAX_PARALLEL_UPLOADS = 4;
-
-type ItemState = "queued" | "processing" | "done" | "failed";
-
-interface Item extends PickedImage {
-  id: string;
-  /** Points at the user's own file; revoked on "Kết thúc phiên" and unmount. */
-  objectUrl: string;
-  state: ItemState;
-  response: AnalyzeSuccess | null;
-  error: string | null;
-}
-
-type Action =
-  | { type: "add"; items: Item[] }
-  | { type: "start"; id: string }
-  | { type: "done"; id: string; response: AnalyzeSuccess }
-  | { type: "fail"; id: string; error: string }
-  | { type: "retry"; ids: string[] }
-  | { type: "reset" };
-
-function reducer(items: Item[], action: Action): Item[] {
-  const update = (id: string, change: Partial<Item>) => items.map((item) => (item.id === id ? { ...item, ...change } : item));
-  switch (action.type) {
-    case "add":
-      return [...items, ...action.items];
-    case "start":
-      return update(action.id, { state: "processing" });
-    case "done":
-      return update(action.id, { state: "done", response: action.response, error: null });
-    case "fail":
-      return update(action.id, { state: "failed", error: action.error });
-    case "retry":
-      return items.map((item) => (action.ids.includes(item.id) ? { ...item, state: "queued", error: null } : item));
-    case "reset":
-      return [];
-  }
-}
-
-function summarize(items: readonly Item[]): SessionSummary {
+function summarize(items: readonly SessionItem[]): SessionSummary {
   const summary: SessionSummary = { total: items.length, completed: 0, error: 0, warning: 0, ok: 0, noText: 0, failed: 0 };
   for (const item of items) {
     if (item.state === "failed") {
@@ -82,98 +40,24 @@ function summarize(items: readonly Item[]): SessionSummary {
 }
 
 export function MockupChecker() {
-  const [items, dispatch] = useReducer(reducer, []);
+  const session = useSession();
+  const { items } = session;
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
-  const queueRef = useRef<TaskQueue | null>(null);
-  const controllers = useRef(new Map<string, AbortController>());
-  const objectUrls = useRef(new Set<string>());
-  // Bumped by "Kết thúc phiên": late answers from the previous session are ignored.
-  const sessionId = useRef(0);
+  function onCollected(collected: CollectResult) {
+    session.addImages(collected.images);
+    const parts = [`Đã thêm ${collected.images.length} ảnh.`];
+    if (collected.skipped > 0) parts.push(`Bỏ qua ${collected.skipped} file không phải ảnh.`);
+    if (collected.brokenZips > 0) parts.push(`Không đọc được ${collected.brokenZips} file .zip.`);
+    setNotice(parts.join(" "));
+  }
 
-  const enqueue = useCallback((item: Pick<Item, "id" | "file" | "name">) => {
-    queueRef.current ??= new TaskQueue(MAX_PARALLEL_UPLOADS);
-    const session = sessionId.current;
-    queueRef.current.push(async () => {
-      if (session !== sessionId.current) return;
-      const controller = new AbortController();
-      controllers.current.set(item.id, controller);
-      dispatch({ type: "start", id: item.id });
-      try {
-        const outcome = await analyzeImage({ file: item.file, name: item.name }, controller.signal);
-        if (session !== sessionId.current) return;
-        if (outcome.kind === "done") dispatch({ type: "done", id: item.id, response: outcome.response });
-        else dispatch({ type: "fail", id: item.id, error: outcome.error });
-      } catch {
-        if (session === sessionId.current) dispatch({ type: "fail", id: item.id, error: "Đã hủy." });
-      } finally {
-        controllers.current.delete(item.id);
-      }
-    });
-  }, []);
-
-  const onCollected = useCallback(
-    (collected: CollectResult) => {
-      const added: Item[] = collected.images.map((image) => {
-        const objectUrl = URL.createObjectURL(image.file);
-        objectUrls.current.add(objectUrl);
-        return { ...image, id: crypto.randomUUID(), objectUrl, state: "queued", response: null, error: null };
-      });
-      dispatch({ type: "add", items: added });
-      added.forEach(enqueue);
-
-      const parts = [`Đã thêm ${added.length} ảnh.`];
-      if (collected.skipped > 0) parts.push(`Bỏ qua ${collected.skipped} file không phải ảnh.`);
-      if (collected.brokenZips > 0) parts.push(`Không đọc được ${collected.brokenZips} file .zip.`);
-      setNotice(parts.join(" "));
-    },
-    [enqueue],
-  );
-
-  const retry = useCallback(
-    (targets: Item[]) => {
-      dispatch({ type: "retry", ids: targets.map((item) => item.id) });
-      targets.forEach(enqueue);
-    },
-    [enqueue],
-  );
-
-  const endSession = useCallback(() => {
-    sessionId.current += 1;
-    queueRef.current?.clear();
-    controllers.current.forEach((controller) => controller.abort());
-    controllers.current.clear();
-    objectUrls.current.forEach((url) => URL.revokeObjectURL(url));
-    objectUrls.current.clear();
-    dispatch({ type: "reset" });
+  function endSession() {
+    session.endSession();
     setNotice(null);
     setConfirmEnd(false);
-  }, []);
-
-  // Warn before closing or reloading the tab while there are results to lose.
-  const hasItems = items.length > 0;
-  useEffect(() => {
-    if (!hasItems) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [hasItems]);
-
-  // Leaving the page (client navigation) also ends the session.
-  useEffect(() => {
-    const urls = objectUrls.current;
-    const inFlight = controllers.current;
-    return () => {
-      sessionId.current += 1;
-      inFlight.forEach((controller) => controller.abort());
-      urls.forEach((url) => URL.revokeObjectURL(url));
-      urls.clear();
-    };
-  }, []);
+  }
 
   const summary = useMemo(() => summarize(items), [items]);
   const byStatus = (status: AnalyzeSuccess["result"]["status"]) =>
@@ -183,13 +67,15 @@ export function MockupChecker() {
   const failed = items.filter((item) => item.state === "failed");
   const ltOffline = items.filter((item) => item.response?.result.ltStatus === "offline").length;
   const mock = items.some((item) => item.response?.mock);
+  const hasItems = items.length > 0;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Kiểm tra mockup</h1>
         {hasItems && (
-          <Button variant="outline" onClick={() => setConfirmEnd(true)}>
+          // Nothing finished yet means nothing to lose: no confirmation needed.
+          <Button variant="outline" onClick={() => (session.hasResults ? setConfirmEnd(true) : endSession())}>
             <XIcon /> Kết thúc phiên
           </Button>
         )}
@@ -242,7 +128,7 @@ export function MockupChecker() {
           <summary className="cursor-pointer text-lg font-semibold">Thất bại ({failed.length})</summary>
           <div className="mt-3 space-y-2">
             {failed.length > 1 && (
-              <Button variant="outline" size="sm" onClick={() => retry(failed)}>
+              <Button variant="outline" size="sm" onClick={() => session.retry(failed.map((item) => item.id))}>
                 <RotateCcwIcon /> Thử lại tất cả
               </Button>
             )}
@@ -255,7 +141,7 @@ export function MockupChecker() {
                   </p>
                   <p className="text-sm text-muted-foreground">{item.error}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => retry([item])}>
+                <Button variant="outline" size="sm" onClick={() => session.retry([item.id])}>
                   <RotateCcwIcon /> Thử lại
                 </Button>
               </div>

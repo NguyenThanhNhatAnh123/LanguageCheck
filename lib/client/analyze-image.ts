@@ -7,7 +7,11 @@ import { resizeImageForUpload } from "./resize-image";
 
 export type AnalyzeSuccess = Extract<AnalyzeApiResponse, { ok: true }>;
 
-export type ClientAnalyzeOutcome = { kind: "done"; response: AnalyzeSuccess } | { kind: "failed"; error: string };
+export type ClientAnalyzeOutcome =
+  | { kind: "done"; response: AnalyzeSuccess }
+  | { kind: "failed"; error: string }
+  /** The login session expired: the caller pauses the queue and retries after re-login. */
+  | { kind: "unauthorized" };
 
 const errorBodySchema = z.object({ error: z.string() });
 
@@ -37,10 +41,7 @@ export async function analyzeImage(image: PickedImage, signal: AbortSignal): Pro
     return { kind: "failed", error: "Mất kết nối tới máy chủ." };
   }
 
-  if (response.status === 401) {
-    // Redirecting would wipe the session's results; let the user log in elsewhere instead.
-    return { kind: "failed", error: "Phiên đăng nhập đã hết hạn. Đăng nhập lại ở tab khác rồi bấm Thử lại." };
-  }
+  if (response.status === 401) return { kind: "unauthorized" };
 
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
 import { LtStatusBadge } from "@/components/lt-status-badge";
+import { SessionExpiredBanner } from "@/components/session/session-expired-banner";
 
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const isDev = process.env.NODE_ENV === "development";
@@ -23,7 +24,10 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-6">
+        <SessionExpiredBanner />
+        {children}
+      </main>
     </>
   );
 }

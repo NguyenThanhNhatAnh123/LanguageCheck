@@ -1,13 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/components/session/session-provider";
 
 export function LogoutButton() {
+  const session = useSession();
   const [pending, setPending] = useState(false);
+  const [confirm, setConfirm] = useState(false);
 
   async function logout() {
     setPending(true);
+    // The shared account must not leave results behind for the next person.
+    session.endSession();
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
@@ -18,8 +32,29 @@ export function LogoutButton() {
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={logout} disabled={pending}>
-      Đăng xuất
-    </Button>
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={pending}
+        onClick={() => (session.items.length > 0 ? setConfirm(true) : void logout())}
+      >
+        Đăng xuất
+      </Button>
+      <AlertDialog open={confirm} onOpenChange={setConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Đăng xuất?</AlertDialogTitle>
+            <AlertDialogDescription>Đăng xuất sẽ kết thúc phiên kiểm tra và xóa toàn bộ kết quả trong tab này.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <Button variant="destructive" disabled={pending} onClick={() => void logout()}>
+              Đăng xuất
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

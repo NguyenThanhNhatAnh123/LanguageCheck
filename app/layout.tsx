@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { SessionProvider } from "@/components/session/session-provider";
 import "./globals.css";
 
 // Both fonts ship a Vietnamese subset, so UI text with diacritics renders in one font.
@@ -21,7 +22,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="vi" className={`${fontSans.variable} ${fontMono.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {/* The checking session survives client-side navigation between pages. */}
+        <SessionProvider>{children}</SessionProvider>
+      </body>
     </html>
   );
 }
