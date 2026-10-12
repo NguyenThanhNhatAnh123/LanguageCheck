@@ -5,7 +5,7 @@ import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
 import { getDatabasePath } from "@/lib/env";
 import * as schema from "./schema";
 
-export type Db = BetterSQLite3Database<typeof schema>;
+export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 
 // Kept on globalThis so dev hot reload does not open a new connection each time.
 const globalForDb = globalThis as typeof globalThis & { __podQaDb?: Db };

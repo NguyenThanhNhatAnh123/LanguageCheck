@@ -5,7 +5,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
-import { addDictionaryWord, listDictionaryEntries, loadDictionaryMatcher } from "./repository";
+import { addDictionaryWord, deleteDictionaryWord, importDictionaryWords, listDictionaryEntries, loadDictionaryMatcher } from "./repository";
 
 let db: Db;
 
@@ -46,6 +46,36 @@ describe("addDictionaryWord", () => {
     expect(() =>
       db.insert(schema.dictionary).values({ language: "de-DE", word: "FÜR", wordKey: "für" }).run(),
     ).toThrow(/UNIQUE/);
+  });
+});
+
+describe("deleteDictionaryWord", () => {
+  it("deletes by id and reports whether something was deleted", () => {
+    const { entry } = addDictionaryWord({ language: "en-US", word: "Haida" }, db);
+    expect(deleteDictionaryWord(entry.id, db)).toBe(true);
+    expect(deleteDictionaryWord(entry.id, db)).toBe(false);
+    expect(listDictionaryEntries(db)).toEqual([]);
+  });
+});
+
+describe("importDictionaryWords", () => {
+  it("adds new words and skips ones already present (by word_key)", () => {
+    addDictionaryWord({ language: "de-DE", word: "Straße" }, db);
+    const summary = importDictionaryWords(
+      [
+        { language: "de-DE", word: "STRASSE" },
+        { language: "en-US", word: "Haida", note: "tribe" },
+        { language: "en-US", word: "HAIDA" },
+        { language: "fr-FR", word: "Été" },
+      ],
+      db,
+    );
+    expect(summary).toEqual({ created: 2, existing: 2 });
+    expect(listDictionaryEntries(db).map((entry) => `${entry.language}:${entry.word}`)).toEqual([
+      "de-DE:Straße",
+      "en-US:Haida",
+      "fr-FR:Été",
+    ]);
   });
 });
 
