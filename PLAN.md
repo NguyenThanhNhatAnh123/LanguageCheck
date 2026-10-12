@@ -1,0 +1,240 @@
+# Kế hoạch triển khai — POD Text QA Dashboard
+
+Kiến trúc: 1 máy Windows 24/7 chạy cả app lẫn LanguageTool, đưa ra internet bằng Cloudflare Tunnel, đăng nhập 1 tài khoản chung, không lưu mockup.
+
+Mỗi giai đoạn gồm 3 phần: việc bạn tự làm, prompt dán vào Claude Code, và cách kiểm tra là xong. Chỉ sang giai đoạn sau khi phần kiểm tra đã đạt.
+
+---
+
+## Giai đoạn 0A — Chuẩn bị (bạn tự làm)
+
+1. **Anthropic Console**: tạo API key riêng cho tool. **Đặt giới hạn chi tiêu theo tháng.**
+2. **Cloudflare**: tạo tài khoản và mua tên miền.
+3. **Máy dev** (máy bạn dùng Claude Code): cài Node.js 20+, Git và Java 21.
+   ```
+   winget install OpenJS.NodeJS.LTS
+   winget install Git.Git
+   winget install EclipseAdoptium.Temurin.21.JRE
+   ```
+   Sau đó chạy `scripts/start-languagetool.bat` và mở `http://localhost:8081/v2/languages`. Thấy danh sách ngôn ngữ là đạt.
+4. **Tạo repo GitHub riêng tư** cho project. Đặt `CLAUDE.md`, `PLAN.md`, `docs/` và `scripts/` vào thư mục gốc.
+5. **Bộ ảnh test** khoảng 20–30 mockup, kèm `test-images/expected.csv` (tên file, chữ đúng, có lỗi không). Nên có đủ các loại:
+   - lỗi thật ở cả 4 ngôn ngữ
+   - mockup đúng hoàn toàn
+   - slang có chủ đích
+   - chữ in hoa tiếng Đức và tiếng Pháp
+   - font tattoo khó đọc
+   - mockup không có chữ
+
+   **Không commit bộ ảnh test lên GitHub** (thêm vào `.gitignore`).
+
+---
+
+## Giai đoạn 0B — Chuẩn bị máy server Windows (bạn tự làm)
+
+Mọi lệnh chạy trong **PowerShell mở bằng quyền Administrator**.
+
+### 1. Cho máy chạy ổn định 24/7
+- Settings → System → Power: **Sleep = Never**.
+- Windows Update → Advanced options → Active hours: đặt theo giờ làm việc, để máy chỉ tự khởi động lại vào ban đêm.
+- BIOS: bật **Restore on AC power loss** (có thể tên "AC Back" / "Power On"), để có điện lại là máy tự bật.
+
+### 2. Cài phần mềm
+```powershell
+winget install EclipseAdoptium.Temurin.21.JRE
+winget install OpenJS.NodeJS.LTS
+winget install Git.Git
+winget install NSSM.NSSM            # nếu lỗi, tải tại nssm.cc
+winget install --id Cloudflare.cloudflared
+```
+Mở PowerShell mới, chạy `where.exe java` và `where.exe node`. Ghi lại 2 đường dẫn này để dùng ở các bước sau.
+
+### 3. Cài LanguageTool thành Windows service
+```powershell
+mkdir C:\LanguageTool
+Invoke-WebRequest https://languagetool.org/download/LanguageTool-stable.zip -OutFile C:\LanguageTool\lt.zip
+Expand-Archive C:\LanguageTool\lt.zip C:\LanguageTool
+Remove-Item C:\LanguageTool\lt.zip
+dir C:\LanguageTool        # ghi lại tên thư mục, ví dụ LanguageTool-6.x
+
+nssm install LanguageTool "<đường dẫn java.exe>" "-Xmx3g -cp languagetool-server.jar org.languagetool.server.HTTPServer --port 8081"
+nssm set LanguageTool AppDirectory C:\LanguageTool\LanguageTool-6.x
+nssm set LanguageTool Start SERVICE_AUTO_START
+nssm set LanguageTool AppStdout C:\LanguageTool\lt.log
+nssm set LanguageTool AppStderr C:\LanguageTool\lt.log
+nssm start LanguageTool
+```
+Kiểm tra: mở `http://localhost:8081/v2/languages` trên chính máy server.
+
+Phần app và Cloudflare Tunnel sẽ cài ở Giai đoạn 6, khi code đã chạy được.
+
+---
+
+## Giai đoạn 1 — Khung dự án, đăng nhập, kết nối LanguageTool
+
+**Prompt cho Claude Code:**
+```
+Đọc CLAUDE.md. Làm Giai đoạn 1:
+- Khởi tạo Next.js (App Router, TS strict, Tailwind, shadcn/ui), better-sqlite3 + Drizzle (DATABASE_PATH), migration cho bảng dictionary và usage_daily.
+- Đăng nhập 1 tài khoản chung đúng theo mục "Đăng nhập" trong CLAUDE.md: trang /login, cookie phiên ký bằng SESSION_SECRET kèm SESSION_VERSION, middleware chặn mọi route, khóa 15 phút sau 5 lần sai theo IP (CF-Connecting-IP, fallback IP request). Script `npm run hash-password` in ra giá trị APP_PASSWORD_HASH_B64.
+- lib/languagetool.ts: hàm check(text, language), timeout 15s, retry 1 lần.
+- GET /api/lt-health và badge trạng thái LanguageTool trên header (poll mỗi 30s).
+- Trang /lt-test (chỉ hiện khi NODE_ENV=development): ô nhập text + chọn ngôn ngữ → hiển thị JSON LanguageTool trả về.
+- Nút Đăng xuất. Tạo .env.example.
+Tra docs hiện hành của Drizzle trước khi viết code.
+```
+
+**Kiểm tra (trên máy dev):**
+- Chưa đăng nhập thì mọi trang đều bị chuyển về `/login`.
+- Sai mật khẩu 5 lần thì bị khóa.
+- Tăng `SESSION_VERSION` và khởi động lại app thì bị đăng xuất.
+- `/lt-test` trả về lỗi cho câu `This are an test.`
+- Badge LanguageTool chuyển đỏ khi tắt `start-languagetool.bat`.
+
+---
+
+## Giai đoạn 2 — Phân tích 1 ảnh bằng Claude (trong bộ nhớ)
+
+**Prompt:**
+```
+Đọc CLAUDE.md và docs/claude-analyze-prompt.md. Làm Giai đoạn 2:
+- POST /api/analyze nhận 1 ảnh (multipart), xử lý hoàn toàn trong bộ nhớ, KHÔNG ghi ảnh ra đĩa.
+- Gọi Claude vision với system prompt + schema trong docs/claude-analyze-prompt.md, chèn từ điển (từ SQLite) vào system prompt, bật prompt caching, validate bằng zod, retry 1 lần nếu JSON lỗi. max_tokens ~3000; stop_reason = max_tokens thì retry 1 lần với ~6000, vẫn bị cắt thì trả failed.
+- Giới hạn đồng thời CLAUDE_MAX_CONCURRENCY cho toàn server, retry 429/529 với backoff.
+- Cộng token vào usage_daily.
+- Trang tạm /dev/analyze: chọn 1 ảnh → resize ở client (cạnh dài ≤1000px, JPEG 0.85) → gửi → hiển thị ảnh (object URL) + JSON kết quả.
+Tra docs Anthropic SDK hiện hành (vision, tool use / structured outputs, prompt caching).
+```
+
+**Kiểm tra:** chạy 10 mockup trong bộ test.
+- Chữ đọc ra phải khớp ảnh. Chỗ không đọc được phải đánh `[?]`, không được bịa.
+- Ngôn ngữ nhận diện đúng.
+- Thư mục project không xuất hiện file ảnh nào.
+- Xem `cache_read_input_tokens` từ lần gọi thứ 2 trở đi. Bằng 0 thì prompt chưa đủ ngưỡng cache của model; chấp nhận được.
+- So sánh `CLAUDE_MODEL` giữa Sonnet và Haiku trên các mockup font khó để chọn model.
+
+---
+
+## Giai đoạn 3 — Ghép LanguageTool + merge + quy tắc ngôn ngữ
+
+**Prompt:**
+```
+Làm Giai đoạn 3 theo CLAUDE.md:
+- Trong /api/analyze, sau bước Claude: gom block theo blocks[].language, mỗi ngôn ngữ nối text bằng "\n" rồi gọi LanguageTool một lần, map offset về từng block. Block unknown bỏ qua LanguageTool.
+- Định vị issue của Claude bằng original + occurrence.
+- Lọc match chính tả có từ trong dictionary. Quy đổi severity LanguageTool theo bảng trong CLAUDE.md, rồi áp các quy tắc ngôn ngữ (quy tắc ngôn ngữ đứng trên bảng quy đổi).
+- Merge 2 nguồn (Claude thắng khi intentional_possible = true hoặc info), tính status (info không tính) và "Chữ sau khi sửa". Đặt các hàm này trong module dùng chung client + server.
+- Phương án sửa theo mục "Phương án sửa" trong CLAUDE.md: chuyển về kiểu chữ của original (in hoa toàn bộ / viết hoa chữ đầu / thường / 1 chữ cái / kiểu khác giữ nguyên, theo locale), bỏ trùng không phân biệt hoa thường, Claude trước LanguageTool sau, tối đa 3.
+- Issue chỉ LanguageTool báo: gắn nhãn tiếng Việt theo issueType (bảng trong CLAUDE.md) kèm message gốc. Không gọi Claude để dịch.
+- LanguageTool lỗi: vẫn trả kết quả Claude kèm lt_status = "offline".
+- Unit test cho: map offset, định vị bằng occurrence, quy đổi severity và nhãn tiếng Việt, bộ lọc ngôn ngữ, merge (gồm ca GONNA), tính status, chữ sau khi sửa.
+- Unit test riêng cho chuyển kiểu chữ + bỏ trùng phương án: YOUR → YOU'RE; Your → You're; your → you're; "A" trong block thường → "An", trong block in hoa → "AN"; McDonald giữ nguyên; ß → SS khi in hoa (de-DE); É giữ dấu khi in hoa (fr-FR); "you're" và "YOU'RE" từ 2 nguồn chỉ còn 1; "Chữ sau khi sửa" của block in hoa vẫn in hoa toàn bộ.
+```
+
+**Kiểm tra:**
+- Unit test pass.
+- Tắt LanguageTool rồi phân tích ảnh: vẫn có kết quả, kèm `lt_status = offline`.
+- Lỗi mà cả 2 nguồn cùng báo được gộp thành 1 issue có `sources` gồm cả hai.
+- Áo slang (ví dụ `GONNA`) không bị xếp vào nhóm Lỗi. Mockup chỉ có issue `info` nằm trong nhóm Không lỗi.
+- Áo chữ in hoa có lỗi: mọi phương án sửa và "Chữ sau khi sửa" đều in hoa toàn bộ.
+
+---
+
+## Giai đoạn 4 — Màn hình chính: tải lên hàng loạt, chỉ hiện mockup lỗi
+
+**Prompt:**
+```
+Làm Giai đoạn 4 theo mục "Luồng xử lý" và "Thẻ mockup lỗi" trong CLAUDE.md:
+- Trang chính /: vùng kéo thả nhiều ảnh, cả thư mục (webkitdirectory) hoặc .zip (giải nén ở client).
+- Hàng đợi client tối đa 4 request song song, thanh tiến độ, thanh tổng kết (Đã kiểm / Lỗi / Nghi ngờ / Không lỗi / Không có chữ / Thất bại).
+- Nhóm Lỗi mở sẵn, nhóm Nghi ngờ thu gọn, nhóm Thất bại có nút Thử lại. ok và no_text chỉ hiện số lượng.
+- Thẻ mockup lỗi: ảnh thu nhỏ bấm để phóng to, chữ đọc được có highlight, từng lỗi (chữ sai → phương án sửa, giải thích tiếng Việt, badge nguồn; issue chỉ LanguageTool báo thì hiện nhãn tiếng Việt kèm thông báo gốc), "Chữ sau khi sửa" có nút copy.
+- Banner khi lt_status = offline.
+- Nút "Kết thúc phiên": xóa state, revoke object URL. Cảnh báo beforeunload khi còn kết quả.
+- Xóa trang tạm /dev/analyze.
+```
+
+**Kiểm tra:**
+- Tải 50 mockup một lượt, không ảnh nào bị kẹt, chỉ mockup lỗi hiện ra.
+- Bấm "Kết thúc phiên" thì màn hình trống.
+- Thư mục project trên máy không có file ảnh nào.
+
+---
+
+## Giai đoạn 5 — Từ điển + thống kê chi phí
+
+**Prompt:**
+```
+Làm Giai đoạn 5:
+- Nút "Thêm vào từ điển" trên từng lỗi: lưu từ (đúng ngôn ngữ) vào SQLite, rồi lọc lại ngay các mockup trong phiên ở client (lỗi đó biến mất, status tính lại).
+- Trang /dictionary: xem/thêm/xóa từ theo ngôn ngữ, ghi chú, import/export CSV.
+- Trang /usage: bảng usage_daily (số ảnh, token vào/ra theo ngày) + tổng tháng này.
+- Script `npm run eval`: chạy toàn bộ test-images, so với test-images/expected.csv, in tỉ lệ bắt đúng và tỉ lệ báo nhầm.
+```
+
+**Kiểm tra:**
+- Thêm một từ vào từ điển thì từ đó không còn bị báo lỗi nữa, cả trong phiên hiện tại lẫn lần tải lên sau.
+- Chạy `npm run eval` và ghi lại kết quả để so sánh sau này.
+
+---
+
+## Giai đoạn 6 — Đưa lên máy server + Cloudflare Tunnel
+
+**Prompt:**
+```
+Làm Giai đoạn 6:
+- Script scripts/deploy.ps1 cho máy server: git pull → npm ci → npm run build → chạy migration → nssm restart PodQA. Dừng lại và báo lỗi rõ ràng nếu bước nào thất bại.
+- Script scripts/backup-dictionary.ps1: copy data/app.db sang thư mục backup kèm ngày, giữ 30 bản gần nhất.
+- Thêm vào README.md: hướng dẫn cài app thành service bằng NSSM và lịch chạy backup bằng Task Scheduler.
+- Rà soát bảo mật: mọi route kiểm tra phiên; không log nội dung ảnh, chữ hay secret; app chỉ lắng nghe 127.0.0.1.
+```
+
+**Bạn tự làm trên máy server:**
+
+1. Clone repo về `C:\pod-qa`, tạo `.env.local` theo `.env.example` (mật khẩu tạo bằng `npm run hash-password`), rồi chạy `npm ci` và `npm run build`.
+2. Cài app thành service:
+   ```powershell
+   nssm install PodQA "<đường dẫn node.exe>" "node_modules\next\dist\bin\next start -H 127.0.0.1 -p 3000"
+   nssm set PodQA AppDirectory C:\pod-qa
+   nssm set PodQA Start SERVICE_AUTO_START
+   nssm set PodQA AppStdout C:\pod-qa\app.log
+   nssm set PodQA AppStderr C:\pod-qa\app.log
+   nssm start PodQA
+   ```
+   Kiểm tra bằng cách mở `http://localhost:3000` trên máy server.
+3. Tạo Cloudflare Tunnel:
+   - Vào Cloudflare **Zero Trust → Networks → Tunnels → Create a tunnel** → chọn **Cloudflared** → đặt tên `pod-qa` → chọn **Windows**.
+   - Chạy lệnh `cloudflared.exe service install <TOKEN>` mà Cloudflare hiển thị.
+   - Ở bước định tuyến (Public hostname / Published application): subdomain `qa`, domain của bạn, service `HTTP` → `localhost:3000`.
+   - **Không** tạo route nào trỏ tới cổng 8081 (LanguageTool).
+4. Kiểm tra từ điện thoại (dùng 4G, không bắt wifi văn phòng):
+   - Mở `https://qa.<domain>` thì phải hiện trang đăng nhập.
+   - Đăng nhập, tải thử 5 mockup.
+5. **Khởi động lại máy server** mà không đăng nhập Windows. Đợi 2 phút rồi mở lại `https://qa.<domain>`: phải vào được và badge LanguageTool màu xanh.
+
+---
+
+## Giai đoạn 7 (tùy chọn) — Dữ liệu n-gram cho LanguageTool
+
+Làm sau khi tool đã chạy ổn định. Mục đích là để LanguageTool bắt thêm lỗi dùng sai từ.
+
+1. Tải gói n-gram cho `en`, `de`, `fr`, `es` từ `https://languagetool.org/download/ngram-data/`, giải nén vào `C:\LanguageTool\ngrams\` (mỗi ngôn ngữ một thư mục con). Cần trống khoảng 30–40GB, nên đặt trên SSD.
+2. Tạo file `C:\LanguageTool\LanguageTool-6.x\server.properties` với nội dung `languageModel=C:\\LanguageTool\\ngrams`.
+3. Thêm `--config server.properties` vào tham số service (`nssm edit LanguageTool`), rồi chạy `nssm restart LanguageTool`.
+4. Chạy lại `npm run eval` và so với kết quả cũ.
+
+---
+
+## Vận hành
+
+- **Nhân viên:** mở `https://qa.<domain>`, đăng nhập bằng tài khoản chung. Không cần cài gì.
+- **Cập nhật tool:** trên máy server chạy `scripts\deploy.ps1`.
+- **Đổi mật khẩu** (ví dụ khi có người nghỉ việc):
+  1. Chạy `npm run hash-password` để tạo hash mới.
+  2. Sửa `APP_PASSWORD_HASH_B64` và tăng `SESSION_VERSION` trong `.env.local`.
+  3. Chạy `nssm restart PodQA`.
+- **Tool không vào được:**
+  1. Trên máy server, mở `services.msc` và kiểm tra 3 service **PodQA**, **LanguageTool**, **Cloudflared**.
+  2. Xem log ở `C:\pod-qa\app.log` và `C:\LanguageTool\lt.log`.
+  3. Vẫn không được thì khởi động lại máy.
+- **Chi phí:** xem trang `/usage`. Giới hạn chi tiêu theo tháng đặt trên Anthropic Console là chốt chặn cuối cùng.

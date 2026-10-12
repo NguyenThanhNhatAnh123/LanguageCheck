@@ -1,0 +1,19 @@
+# dependencies / build
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets
+.env*
+!.env.example
+
+# SQLite (dictionary + usage) - lives only on the server
+data/
+
+# test mockups - never commit
+test-images/
+
+# logs
+*.log
