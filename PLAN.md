@@ -117,6 +117,20 @@ Tra docs Anthropic SDK hiện hành (vision, tool use / structured outputs, prom
 - Xem `cache_read_input_tokens` từ lần gọi thứ 2 trở đi. Bằng 0 thì prompt chưa đủ ngưỡng cache của model; chấp nhận được.
 - So sánh `CLAUDE_MODEL` giữa Sonnet và Haiku trên các mockup font khó để chọn model.
 
+**Trạng thái (2026-10-12):** phần code đã xong và đã kiểm tra bằng chế độ mock (xem "Chế độ mock" trong CLAUDE.md): retry khi bị cắt và khi sai schema, giới hạn đồng thời, không ghi ảnh ra đĩa, không log nội dung, production dừng khi thiếu key. Chưa có API key và bộ ảnh test nên các mục dưới **chưa chạy**.
+
+### Còn phải chạy lại khi có API key và bộ ảnh test
+
+Đặt `ANTHROPIC_API_KEY` vào `.env.local` (dev sẽ tự chuyển từ mock sang gọi thật), rồi chạy 10 mockup qua `/dev/analyze` (hoặc màn hình chính nếu đã có Giai đoạn 4):
+
+1. **Chất lượng đọc chữ:** chữ khớp ảnh, chỗ không đọc được là `[?]` chứ không bịa, ngôn ngữ nhận diện đúng, chữ trên nền mockup (tag, nhãn) bị bỏ qua.
+2. **So Sonnet/Haiku:** đổi `CLAUDE_MODEL` giữa `claude-sonnet-5-5` và `claude-haiku-5-5` trên các mockup font khó. Thử thêm `CLAUDE_ANALYZE_EFFORT` = `low` và `medium`. Ghi lại độ chính xác, thời gian, token/ảnh để chọn model và effort.
+3. **`cache_read_input_tokens`:** từ lần gọi thứ 2 trở đi có lớn hơn 0 không (xem trong JSON trên `/dev/analyze`). Bằng 0 thì prompt chưa đủ ngưỡng cache của model; chấp nhận được.
+4. **Lỗi schema thật:**
+   - Lần gọi đầu tiên: API chấp nhận JSON schema (các trường `nullable`) và tham số `fallbacks` (với Sonnet), không trả 400.
+   - Theo dõi log `[claude] output invalid` và `output still truncated`: bao nhiêu % ảnh phải retry vì sai schema hoặc bị cắt ở `max_tokens` 3000 (thinking cũng tính vào `max_tokens`). Tỉ lệ cao thì tăng `max_tokens` hoặc giảm effort.
+5. Kiểm tra `usage_daily` có tăng đúng số ảnh và token sau khi chạy.
+
 ---
 
 ## Giai đoạn 3 — Ghép LanguageTool + merge + quy tắc ngôn ngữ

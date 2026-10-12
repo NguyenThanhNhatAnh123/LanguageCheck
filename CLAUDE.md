@@ -47,7 +47,8 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
 ## Luồng xử lý
 
 1. Người dùng chọn ảnh: nhiều file, cả thư mục (`webkitdirectory`) hoặc file `.zip` (giải nén ở client). Client giữ `File` gốc và tạo object URL để **hiển thị ảnh từ chính máy người dùng**.
-2. Client resize từng ảnh (cạnh dài ≤1000px, JPEG ~0.85), rồi `POST /api/analyze` (multipart, 1 ảnh mỗi request). Hàng đợi ở client cho phép tối đa 4 request song song.
+2. Client resize từng ảnh (cạnh dài ≤1000px, JPEG ~0.85), rồi `POST /api/analyze` (multipart, 1 ảnh mỗi request, kèm tên file gốc ở trường `fileName`). Hàng đợi ở client cho phép tối đa 4 request song song.
+   - Ảnh có nền trong suốt được ghép lên nền **xám trung tính** trước khi nén JPEG. Lý do: ghép lên nền trắng sẽ làm mất chữ trắng (thiết kế cho áo tối màu), nền đen sẽ làm mất chữ đen.
 3. Server xử lý trong bộ nhớ, theo thứ tự:
    1. **Gọi Claude** vision với prompt trong `docs/claude-analyze-prompt.md`, có từ điển team trong system prompt. Validate kết quả bằng zod. Định vị từng issue: tìm lần xuất hiện thứ `occurrence` (thiếu thì mặc định 1) của `original` trong `blocks[block_index].text`.
    2. **Gọi LanguageTool.** Gom các block theo `blocks[].language`. Với mỗi ngôn ngữ, nối text các block bằng `"\n"`, gửi `POST {LT_URL}/v2/check` (form-urlencoded: `text`, `language`), rồi map `offset/length` ngược về từng block. Block `unknown` không gửi LanguageTool, chỉ dùng kết quả Claude.
@@ -134,8 +135,10 @@ Các hàm quy đổi, gắn nhãn, merge, xử lý phương án sửa, tính `st
 
 - **LanguageTool lỗi hoặc tắt**: vẫn trả kết quả Claude, kèm `lt_status = "offline"`. UI hiện banner "LanguageTool đang lỗi, kết quả chỉ từ Claude".
 - **LanguageTool chậm ở lần gọi đầu**: xem mục "LanguageTool: timeout và nạp sẵn".
-- **Claude trả lỗi 429/529**: retry với backoff.
-- **JSON từ Claude sai schema**: retry 1 lần, vẫn sai thì trả `failed`.
+- **Claude trả lỗi 429/529**: retry với backoff. Do SDK tự làm (`maxRetries: 3`, có tôn trọng `retry-after`); lỗi vẫn còn sau đó thì trả `failed`.
+- **JSON từ Claude sai schema** (kể cả `block_index` trỏ tới block không tồn tại, `original` rỗng): retry 1 lần, vẫn sai thì trả `failed`.
+- **Claude từ chối** (`stop_reason = "refusal"`): trả `failed`, không retry.
+- **Production thiếu cấu hình Claude** (không có `ANTHROPIC_API_KEY`, thiếu `CLAUDE_MODEL`, hoặc có `CLAUDE_MOCK=1`): server **dừng ngay khi khởi động** (`process.exit(1)`), log ghi rõ thiếu biến nào. Lý do: nếu chỉ ném lỗi, Next.js vẫn chạy tiếp ở trạng thái hỏng.
 - **Claude bị cắt giữa chừng** (`stop_reason = "max_tokens"`): `max_tokens` mặc định ~3000. Bị cắt thì retry 1 lần với giới hạn gấp đôi (~6000), vì retry y nguyên sẽ bị cắt đúng chỗ cũ. Vẫn bị cắt thì trả `failed`.
 - **Giới hạn đồng thời**: server cho phép tối đa `CLAUDE_MAX_CONCURRENCY` lời gọi Claude cùng lúc, chung cho mọi người dùng.
 
@@ -162,6 +165,9 @@ Lần gọi đầu tiên cho mỗi ngôn ngữ sau khi LanguageTool khởi độ
   - Lý do không dùng `lower(word)` của SQLite: hàm này chỉ đổi hoa/thường cho chữ không dấu, nên coi `FÜR` và `für` là hai từ khác nhau.
   - Mọi chỗ so khớp với từ điển (lọc lỗi ở server, lọc lại ở client, kiểm tra trùng khi thêm từ) đều so theo `word_key` và đúng ngôn ngữ.
 - `usage_daily`: date, images, input_tokens, output_tokens. Chỉ chứa con số.
+  - `date` theo giờ địa phương của máy server. Mỗi ảnh đã tới được Claude cộng 1 vào `images`, kể cả khi kết quả cuối là `failed`, vì mọi lần gọi đều tốn tiền.
+  - `input_tokens` = token đầu vào chưa cache + token ghi cache + token đọc cache. Token của mọi lần retry đều được cộng.
+  - Chế độ mock không ghi vào bảng này.
 
 ## Quy tắc ngôn ngữ (áp vào prompt Claude và bộ lọc LanguageTool)
 
@@ -190,7 +196,10 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
 - Next.js (App Router) + TypeScript strict + Tailwind + shadcn/ui
 - `better-sqlite3` + Drizzle cho SQLite
 - `@anthropic-ai/sdk`. Model lấy từ env `CLAUDE_MODEL`, không hardcode.
-  - Dùng output có cấu trúc: tool use với `input_schema`, hoặc structured outputs nếu SDK hiện hành hỗ trợ.
+  - Dùng **structured outputs** (`output_config.format`, schema sinh từ zod bằng `zodOutputFormat`), không dùng tool use. Lý do: Sonnet 5.5 / Opus 5.5 từ chối `tool_choice` ép buộc (`any`/`tool`), còn structured outputs bảo đảm JSON đúng schema. Trường không bắt buộc khai báo là `nullable` (vẫn required) cho chắc chắn được hỗ trợ.
+  - Thinking để mặc định (adaptive), chỉnh độ sâu bằng `output_config.effort` lấy từ `CLAUDE_ANALYZE_EFFORT` (mặc định `low`). Token thinking tính vào `max_tokens`.
+  - Model có hỗ trợ thì bật refusal fallback phía server (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`). Haiku 5.5 không hỗ trợ nên không gửi.
+  - Code gọi Claude đi qua interface `ClaudeTransport` (`lib/claude/transport.ts`). Bản thật (`live-transport.ts`) và bản mock (`mock-transport.ts`) dùng chung logic retry, validate và giới hạn đồng thời (`lib/claude/analyze.ts`).
   - Cache system prompt và từ điển bằng prompt caching. Mỗi model có ngưỡng độ dài tối thiểu để cache; kiểm tra `cache_read_input_tokens` thực tế. Prompt chưa đủ dài thì chấp nhận không cache; từ điển lớn dần thì cache sẽ tự có tác dụng.
 - zod validate mọi input API và mọi output của Claude. Không dùng `any`.
 - Unit test bằng Vitest (`npm test`), file `*.test.ts` đặt cạnh code. Test cần DB thì dùng SQLite in-memory dựng từ migration thật.
@@ -207,6 +216,8 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
 ANTHROPIC_API_KEY=
 CLAUDE_MODEL=claude-sonnet-5-5
 CLAUDE_MAX_CONCURRENCY=8
+CLAUDE_ANALYZE_EFFORT=low
+CLAUDE_MOCK=
 LT_URL=http://localhost:8081
 APP_USERNAME=
 APP_PASSWORD_HASH_B64=
@@ -214,6 +225,19 @@ SESSION_SECRET=
 SESSION_VERSION=1
 DATABASE_PATH=./data/app.db
 ```
+
+- `CLAUDE_ANALYZE_EFFORT`: `low` | `medium` | `high`, mặc định `low`. Không đặt tên là `CLAUDE_EFFORT` vì Claude Code tự đặt biến đó (ví dụ `xhigh`) cho mọi tiến trình nó chạy, và biến môi trường có sẵn được ưu tiên hơn `.env.local`.
+- `CLAUDE_MOCK`: chỉ dùng ở dev, xem mục dưới.
+
+## Chế độ mock (chỉ ở dev)
+
+Dùng khi chưa có API key hoặc không muốn tốn tiền lúc phát triển giao diện.
+
+- Bật khi `CLAUDE_MOCK=1`, hoặc tự bật khi thiếu `ANTHROPIC_API_KEY` ở môi trường không phải production. **Production không bao giờ chạy mock:** xem "Khi có sự cố".
+- `/api/analyze` trả kết quả từ `fixtures/claude/*.json` thay vì gọi Claude. LanguageTool vẫn gọi thật.
+- Chọn fixture theo tên file ảnh: file chứa một từ khóa trong `match` của fixture (không phân biệt hoa thường, từ khóa dài nhất thắng; ví dụ `shirt-GONNA_02.jpg` → `gonna`). Không khớp thì chọn giả ngẫu nhiên theo hash tên file, chỉ trong các fixture `pick_randomly: true`. Cùng một file luôn ra cùng một fixture, để "Thử lại" cho kết quả ổn định.
+- Mỗi fixture có một chuỗi `responses`: lần gọi thứ N lấy phản hồi thứ N (hết thì lặp phản hồi cuối). Nhờ vậy mock đi qua đúng code retry thật, ví dụ `truncated` bị cắt lần đầu rồi thành công khi retry, còn `invalid-schema` sai schema cả 2 lần nên `failed`.
+- Có độ trễ giả 0,4–1,5s mỗi lần gọi, để hàng đợi và thanh tiến độ chạy giống thật.
 
 ## Môi trường dev
 
