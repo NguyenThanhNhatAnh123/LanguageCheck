@@ -1,0 +1,32 @@
+{
+  "description": "en-US: one letter unreadable in a tattoo font (ocr_uncertain); should end up in 'Nghi ngờ'.",
+  "match": ["ocr"],
+  "pick_randomly": true,
+  "usage": { "input_tokens": 1880, "output_tokens": 390 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "en-US",
+        "blocks": [
+          { "index": 0, "text": "BORN TO R[?]DE", "role": "headline", "language": "en-US", "legibility": "partial" },
+          { "index": 1, "text": "FREEDOM MOTOR CLUB", "role": "small", "language": "en-US", "legibility": "clear" }
+        ],
+        "issues": [
+          {
+            "block_index": 0,
+            "original": "R[?]DE",
+            "occurrence": null,
+            "type": "ocr_uncertain",
+            "severity": "warning",
+            "intentional_possible": false,
+            "explanation_vi": "Không đọc rõ chữ cái thứ 2 do font cách điệu. Nhiều khả năng là \"RIDE\", cần người xem lại ảnh.",
+            "suggestions": [{ "text": "RIDE", "note_vi": null }]
+          }
+        ],
+        "notes_vi": "Font tattoo khó đọc, nên kiểm tra lại bằng mắt."
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "description": "de-DE: FUR instead of FÜR (missing umlaut, real error) in ALL CAPS.",
+  "match": ["de-error"],
+  "pick_randomly": true,
+  "usage": { "input_tokens": 1820, "output_tokens": 380 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "de-DE",
+        "blocks": [
+          { "index": 0, "text": "NUR FUR DICH", "role": "headline", "language": "de-DE", "legibility": "clear" },
+          { "index": 1, "text": "HANDGEMACHT IN BERLIN", "role": "small", "language": "de-DE", "legibility": "clear" }
+        ],
+        "issues": [
+          {
+            "block_index": 0,
+            "original": "FUR",
+            "occurrence": null,
+            "type": "accent",
+            "severity": "error",
+            "intentional_possible": false,
+            "explanation_vi": "Thiếu dấu umlaut: \"für\" nghĩa là \"cho\". \"FUR\" không phải từ tiếng Đức.",
+            "suggestions": [{ "text": "FÜR", "note_vi": "Nếu font không có Ü thì có thể viết FUER" }]
+          }
+        ],
+        "notes_vi": null
+      }
+    }
+  ]
+}

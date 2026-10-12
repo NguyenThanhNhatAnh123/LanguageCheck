@@ -1,0 +1,24 @@
+{
+  "description": "First answer cut at max_tokens; the retry with double max_tokens succeeds (ok).",
+  "match": ["truncated", "max-tokens"],
+  "pick_randomly": false,
+  "usage": { "input_tokens": 1810, "output_tokens": 3000 },
+  "responses": [
+    {
+      "stop_reason": "max_tokens",
+      "raw_text": "{\"has_text\": true, \"language\": \"en-US\", \"blocks\": [{\"index\": 0, \"text\": \"LIFE IS BETTER AT THE"
+    },
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "en-US",
+        "blocks": [
+          { "index": 0, "text": "LIFE IS BETTER\nAT THE LAKE", "role": "headline", "language": "en-US", "legibility": "clear" }
+        ],
+        "issues": [],
+        "notes_vi": null
+      }
+    }
+  ]
+}

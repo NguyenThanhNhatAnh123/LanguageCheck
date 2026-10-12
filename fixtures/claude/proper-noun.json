@@ -1,0 +1,32 @@
+{
+  "description": "en-US: tribal name HAIDA flagged as a possible proper noun (warning, intentional); for dictionary tests.",
+  "match": ["proper-noun", "haida"],
+  "pick_randomly": true,
+  "usage": { "input_tokens": 1840, "output_tokens": 410 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "en-US",
+        "blocks": [
+          { "index": 0, "text": "HAIDA PRIDE", "role": "headline", "language": "en-US", "legibility": "clear" },
+          { "index": 1, "text": "NATIVE AMERICAN HERITAGE", "role": "small", "language": "en-US", "legibility": "clear" }
+        ],
+        "issues": [
+          {
+            "block_index": 0,
+            "original": "HAIDA",
+            "occurrence": null,
+            "type": "spelling",
+            "severity": "warning",
+            "intentional_possible": true,
+            "explanation_vi": "Có thể là tên bộ tộc Haida, không phải lỗi. Nếu đúng, hãy thêm vào từ điển để lần sau không bị báo.",
+            "suggestions": [{ "text": "HAIDA", "note_vi": "Giữ nguyên nếu đúng là tên bộ tộc" }]
+          }
+        ],
+        "notes_vi": null
+      }
+    }
+  ]
+}

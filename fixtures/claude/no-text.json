@@ -1,0 +1,18 @@
+{
+  "description": "Design with no text at all (no_text).",
+  "match": ["no-text", "notext"],
+  "pick_randomly": true,
+  "usage": { "input_tokens": 1790, "output_tokens": 60 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": false,
+        "language": "unknown",
+        "blocks": [],
+        "issues": [],
+        "notes_vi": "Ảnh không có chữ."
+      }
+    }
+  ]
+}

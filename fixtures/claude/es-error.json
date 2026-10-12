@@ -1,0 +1,42 @@
+{
+  "description": "es-ES: missing accents that change meaning (TU -> TÚ, MAS -> MÁS), real errors.",
+  "match": ["es-error"],
+  "pick_randomly": true,
+  "usage": { "input_tokens": 1860, "output_tokens": 520 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "es-ES",
+        "blocks": [
+          { "index": 0, "text": "TU ERES\nMI VIDA", "role": "headline", "language": "es-ES", "legibility": "clear" },
+          { "index": 1, "text": "TE QUIERO MAS", "role": "body", "language": "es-ES", "legibility": "clear" }
+        ],
+        "issues": [
+          {
+            "block_index": 0,
+            "original": "TU",
+            "occurrence": null,
+            "type": "accent",
+            "severity": "error",
+            "intentional_possible": false,
+            "explanation_vi": "\"Tú\" (có dấu) là \"bạn\"; \"tu\" (không dấu) là \"của bạn\". Ở đây cần TÚ.",
+            "suggestions": [{ "text": "TÚ", "note_vi": null }]
+          },
+          {
+            "block_index": 1,
+            "original": "MAS",
+            "occurrence": null,
+            "type": "accent",
+            "severity": "error",
+            "intentional_possible": false,
+            "explanation_vi": "\"Más\" (có dấu) là \"hơn, nhiều hơn\"; \"mas\" (không dấu) là \"nhưng\". Ở đây cần MÁS.",
+            "suggestions": [{ "text": "MÁS", "note_vi": null }]
+          }
+        ],
+        "notes_vi": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "description": "en-US: YOUR instead of YOU'RE in an ALL CAPS headline (real error).",
+  "match": ["en-error"],
+  "pick_randomly": true,
+  "usage": { "input_tokens": 1850, "output_tokens": 420 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "en-US",
+        "blocks": [
+          { "index": 0, "text": "YOUR THE BEST\nDAD EVER", "role": "headline", "language": "en-US", "legibility": "clear" },
+          { "index": 1, "text": "EST. 2024", "role": "small", "language": "en-US", "legibility": "clear" }
+        ],
+        "issues": [
+          {
+            "block_index": 0,
+            "original": "YOUR",
+            "occurrence": null,
+            "type": "grammar",
+            "severity": "error",
+            "intentional_possible": false,
+            "explanation_vi": "\"Your\" nghĩa là \"của bạn\". Ở đây cần \"you're\" (= you are, \"bạn là\").",
+            "suggestions": [
+              { "text": "YOU'RE", "note_vi": "Viết tắt của YOU ARE" },
+              { "text": "YOU ARE", "note_vi": null }
+            ]
+          }
+        ],
+        "notes_vi": null
+      }
+    }
+  ]
+}

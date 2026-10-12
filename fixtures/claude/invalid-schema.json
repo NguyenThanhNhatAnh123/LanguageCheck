@@ -1,0 +1,12 @@
+{
+  "description": "Output that does not match the schema, twice in a row: failed after one retry.",
+  "match": ["invalid-schema", "bad-json"],
+  "pick_randomly": false,
+  "usage": { "input_tokens": 1800, "output_tokens": 120 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "raw_text": "{\"has_text\": true, \"language\": \"en-US\", \"blocks\": \"not a list\", \"issues\": []}"
+    }
+  ]
+}

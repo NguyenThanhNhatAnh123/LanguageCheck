@@ -1,0 +1,31 @@
+{
+  "description": "fr-FR: number agreement error in lowercase text (chose -> choses).",
+  "match": ["fr-error"],
+  "pick_randomly": true,
+  "usage": { "input_tokens": 1840, "output_tokens": 400 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "fr-FR",
+        "blocks": [
+          { "index": 0, "text": "Les petites chose\nde la vie", "role": "headline", "language": "fr-FR", "legibility": "clear" }
+        ],
+        "issues": [
+          {
+            "block_index": 0,
+            "original": "chose",
+            "occurrence": null,
+            "type": "grammar",
+            "severity": "error",
+            "intentional_possible": false,
+            "explanation_vi": "\"Les petites\" là số nhiều nên danh từ phải là \"choses\" (thêm s).",
+            "suggestions": [{ "text": "choses", "note_vi": null }]
+          }
+        ],
+        "notes_vi": null
+      }
+    }
+  ]
+}

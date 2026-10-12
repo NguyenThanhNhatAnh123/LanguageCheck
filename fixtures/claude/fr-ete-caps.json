@@ -1,0 +1,31 @@
+{
+  "description": "fr-FR: ALL CAPS ETE without accents (info); should end up in 'Không lỗi'.",
+  "match": ["ete-caps", "fr-ete"],
+  "pick_randomly": true,
+  "usage": { "input_tokens": 1820, "output_tokens": 350 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "fr-FR",
+        "blocks": [
+          { "index": 0, "text": "VIVE L'ETE", "role": "headline", "language": "fr-FR", "legibility": "clear" }
+        ],
+        "issues": [
+          {
+            "block_index": 0,
+            "original": "ETE",
+            "occurrence": null,
+            "type": "accent",
+            "severity": "info",
+            "intentional_possible": false,
+            "explanation_vi": "Chữ in hoa trong tiếng Pháp thường được bỏ dấu, nên \"ETE\" chấp nhận được. Viết đầy đủ là \"ÉTÉ\".",
+            "suggestions": [{ "text": "ÉTÉ", "note_vi": "Thêm dấu nếu font có chữ É" }]
+          }
+        ],
+        "notes_vi": null
+      }
+    }
+  ]
+}
