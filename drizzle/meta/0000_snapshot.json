@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5e1ea5d0-a1c4-4e05-bd7e-691fb9ec82e1",
+  "id": "06401789-21ed-4edb-a94d-b2e9ccacdac0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "dictionary": {
@@ -28,6 +28,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "word_key": {
+          "name": "word_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "note": {
           "name": "note",
           "type": "text",
@@ -45,11 +52,11 @@
         }
       },
       "indexes": {
-        "dictionary_language_word_unique": {
-          "name": "dictionary_language_word_unique",
+        "dictionary_language_word_key_unique": {
+          "name": "dictionary_language_word_key_unique",
           "columns": [
             "language",
-            "lower(\"word\")"
+            "word_key"
           ],
           "isUnique": true
         }
@@ -109,14 +116,6 @@
     "columns": {}
   },
   "internal": {
-    "indexes": {
-      "dictionary_language_word_unique": {
-        "columns": {
-          "lower(\"word\")": {
-            "isExpression": true
-          }
-        }
-      }
-    }
+    "indexes": {}
   }
 }

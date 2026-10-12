@@ -11,17 +11,16 @@ export const dictionary = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     language: text("language", { enum: LANGUAGES }).notNull(),
+    // As the user typed it, shown in the UI.
     word: text("word").notNull(),
+    // Computed in code by toWordKey(); used for uniqueness and for filtering issues.
+    wordKey: text("word_key").notNull(),
     note: text("note"),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),
   },
-  (table) => [
-    // SQLite lower() only folds ASCII; the app must also check duplicates
-    // case-insensitively in JS before inserting (e.g. "FÜR" vs "für").
-    uniqueIndex("dictionary_language_word_unique").on(table.language, sql`lower(${table.word})`),
-  ],
+  (table) => [uniqueIndex("dictionary_language_word_key_unique").on(table.language, table.wordKey)],
 );
 
 export const usageDaily = sqliteTable("usage_daily", {
