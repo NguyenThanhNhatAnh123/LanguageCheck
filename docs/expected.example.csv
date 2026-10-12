@@ -1,0 +1,8 @@
+file,expected_text,has_error
+your-the-best-dad.jpg,"YOU'RE THE BEST
+DAD EVER",yes
+nur-fur-dich.png,NUR FÜR DICH,yes
+gonna-rock.jpg,"WE'RE GONNA
+ROCK TONIGHT",no
+vive-l-ete.png,VIVE L'ETE,no
+plain-tshirt-no-text.jpg,,no

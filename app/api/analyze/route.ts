@@ -1,17 +1,9 @@
 import { z } from "zod";
-import type { AnalyzeApiResponse } from "@/lib/analysis/api-types";
-import { analyzeTexts } from "@/lib/analysis/pipeline";
-import { runLanguageTool } from "@/lib/analysis/run-languagetool";
-import type { AnalysisInput } from "@/lib/analysis/types";
+import { analyzeMockup } from "@/lib/analysis/analyze-mockup";
 import { hasValidSession, unauthorizedResponse } from "@/lib/auth/require-session";
-import { analyzeWithClaude, CLAUDE_FAILURE_MESSAGES } from "@/lib/claude/analyze";
 import { ClaudeConfigError } from "@/lib/claude/config";
 import { getClaudeRuntime, type ClaudeRuntime } from "@/lib/claude";
-import { buildSystemPrompt } from "@/lib/claude/prompt";
 import { ACCEPTED_IMAGE_TYPES, type ImageMediaType } from "@/lib/claude/transport";
-import { createDictionaryMatcher } from "@/lib/dictionary/matcher";
-import { listDictionaryEntries } from "@/lib/dictionary/repository";
-import { recordUsage } from "@/lib/usage";
 
 // Client resizes to ≤1000px JPEG (~100–400 KB); anything far above that is not a resized mockup.
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -58,46 +50,9 @@ export async function POST(request: Request) {
     return Response.json({ error: "Máy chủ chưa cấu hình Claude. Báo người quản trị." }, { status: 500 });
   }
 
-  const dictionary = listDictionaryEntries();
-
-  // 1. Claude: transcription + proofreading.
-  const outcome = await analyzeWithClaude(
-    {
-      image: { data: Buffer.from(await image.arrayBuffer()), mediaType: image.type },
-      fileName: fileName.data,
-      systemPrompt: buildSystemPrompt(dictionary),
-    },
-    { transport: runtime.transport, maxConcurrency: runtime.maxConcurrency },
+  const response = await analyzeMockup(
+    { data: Buffer.from(await image.arrayBuffer()), mediaType: image.type, fileName: fileName.data },
+    runtime,
   );
-
-  // Every attempt that reached Claude is billed. Mock calls cost nothing and are not recorded.
-  if (!runtime.mock && outcome.attempts > 0) recordUsage(outcome.usage);
-
-  if (!outcome.ok) {
-    return Response.json({
-      ok: false,
-      mock: runtime.mock,
-      reason: outcome.reason,
-      error: CLAUDE_FAILURE_MESSAGES[outcome.reason],
-      attempts: outcome.attempts,
-    } satisfies AnalyzeApiResponse);
-  }
-
-  // 2. LanguageTool on the transcribed blocks; 3–4. filter, merge, status, corrected text.
-  const lt = await runLanguageTool(outcome.analysis.blocks);
-  const input: AnalysisInput = { claude: outcome.analysis, ltMatches: lt.matches, ltStatus: lt.status };
-  const { result, claudeIssuesNotFound } = analyzeTexts(input, createDictionaryMatcher(dictionary));
-  if (claudeIssuesNotFound > 0) {
-    console.warn(`[analyze] ${claudeIssuesNotFound} Claude issue(s) not found in their block, downgraded to warning`);
-  }
-
-  return Response.json({
-    ok: true,
-    mock: runtime.mock,
-    model: outcome.model,
-    attempts: outcome.attempts,
-    usage: outcome.usage,
-    input,
-    result,
-  } satisfies AnalyzeApiResponse);
+  return Response.json(response);
 }
