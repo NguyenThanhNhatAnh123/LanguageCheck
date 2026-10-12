@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { SessionProvider } from "@/components/session/session-provider";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-// Both fonts ship a Vietnamese subset, so UI text with diacritics renders in one font.
+// UI text: Inter with the Vietnamese subset. File names and text read from mockups:
+// JetBrains Mono (latin-ext for É ü ñ ß ¿; vietnamese too, since file names can be Vietnamese).
 const fontSans = Inter({
   variable: "--font-sans",
   subsets: ["latin", "latin-ext", "vietnamese"],
@@ -21,10 +24,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="vi" className={`${fontSans.variable} ${fontMono.variable} h-full antialiased`}>
+    // next-themes sets the class on <html> before hydration.
+    <html lang="vi" suppressHydrationWarning className={`${fontSans.variable} ${fontMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        {/* The checking session survives client-side navigation between pages. */}
-        <SessionProvider>{children}</SessionProvider>
+        <ThemeProvider>
+          {/* The checking session survives client-side navigation between pages. */}
+          <SessionProvider>{children}</SessionProvider>
+          <Toaster position="bottom-right" />
+        </ThemeProvider>
       </body>
     </html>
   );
