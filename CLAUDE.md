@@ -52,7 +52,7 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
 3. Server xử lý trong bộ nhớ, theo thứ tự:
    1. **Gọi Claude** vision với prompt trong `docs/claude-analyze-prompt.md`, có từ điển team trong system prompt. Validate kết quả bằng zod. Định vị từng issue: tìm lần xuất hiện thứ `occurrence` (thiếu thì mặc định 1) của `original` trong `blocks[block_index].text`.
    2. **Gọi LanguageTool.** Gom các block theo `blocks[].language`. Với mỗi ngôn ngữ, nối text các block bằng `"\n"`, gửi `POST {LT_URL}/v2/check` (form-urlencoded: `text`, `language`), rồi map `offset/length` ngược về từng block. Block `unknown` không gửi LanguageTool, chỉ dùng kết quả Claude.
-   3. **Lọc và quy đổi.** Bỏ các issue có `original` nằm trong từ điển (đúng ngôn ngữ, so theo `word_key`). Áp cho **cả 2 nguồn**, để thêm từ vào từ điển thì lỗi Claude báo cũng biến mất. Quy đổi severity theo mục "Quy đổi severity LanguageTool", rồi áp các quy tắc ngôn ngữ ở dưới. Match của LanguageTool nằm trên chỗ `[?]` (chữ Claude không đọc được) thì bỏ, vì sự không chắc chắn đó đã có issue `ocr_uncertain` của Claude.
+   3. **Lọc và quy đổi.** Bỏ các **lỗi chính tả** (Claude: `spelling`, `capitalization`, `accent`; LanguageTool: `misspelling`) có `original` nằm trong từ điển (đúng ngôn ngữ, so theo `word_key`); với cụm nhiều từ thì **mọi từ** trong cụm phải có trong từ điển. Áp cho **cả 2 nguồn**, để thêm từ vào từ điển thì lỗi Claude báo cũng biến mất. Lỗi ngữ pháp, dấu câu, chọn từ… không bao giờ bị từ điển che (ví dụ có `your` trong từ điển vẫn phải bắt `YOUR THE BEST`). Quy đổi severity theo mục "Quy đổi severity LanguageTool", rồi áp các quy tắc ngôn ngữ ở dưới. Match của LanguageTool nằm trên chỗ `[?]` (chữ Claude không đọc được) thì bỏ, vì sự không chắc chắn đó đã có issue `ocr_uncertain` của Claude.
       - Gọi LanguageTool lỗi ở bất kỳ ngôn ngữ nào thì coi cả lượt là `offline` và bỏ toàn bộ kết quả LanguageTool của ảnh đó, không trộn kết quả nửa vời.
    4. **Merge 2 nguồn**, xử lý phương án sửa, áp quy tắc "chữ in hoa thiếu dấu" của fr-FR, rồi tính `status` và "Chữ sau khi sửa".
    5. **Trả JSON về client.** Cộng token đã dùng vào bảng thống kê ngày. Buffer ảnh bị bỏ đi.
@@ -94,7 +94,9 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
     | còn lại | Cần xem lại |
 - "Chữ sau khi sửa" của cả block, có nút copy.
 - Nút "Thêm vào từ điển" cho từ bị báo nhầm. Từ được lưu ngay, và các mockup còn lại trong phiên được lọc lại ở client (tính lại `status` và "Chữ sau khi sửa").
-  - Chỉ hiện khi `original` là **một từ đơn** (không khoảng trắng, không `[?]`, không phải `ocr_uncertain`) và biết ngôn ngữ của block.
+  - Chỉ hiện với **lỗi chính tả** (loại mà từ điển áp dụng, xem bước 3 "Lọc và quy đổi"), khi biết ngôn ngữ của block, và không hiện cho chỗ đọc không rõ (`[?]`, `ocr_uncertain`).
+  - `original` là một từ → nút "Thêm vào từ điển" (từ đã bỏ dấu câu ở hai đầu, ví dụ `YOU'RE!` → `YOU'RE`).
+  - `original` là cụm nhiều từ → nút **"Thêm từng từ…"** mở popover có chip cho từng từ (tách bằng `splitWords()`, giữ dấu nháy/gạch nối bên trong từ, bỏ trùng). Bấm chip nào thêm từ đó; chip của từ đã có trong từ điển hiện dấu ✓. Lỗi của cả cụm biến mất khi mọi từ đã có.
   - Lưu xong hiện toast xác nhận có nút **"Hoàn tác"**: xóa đúng từ vừa thêm, các lỗi liên quan hiện lại. Từ đã có sẵn thì chỉ báo "đã có trong từ điển" (không có Hoàn tác, để không xóa nhầm từ có từ trước).
   - Cơ chế lọc lại: `SessionProvider` giữ bản sao từ điển. Sau mỗi thay đổi từ điển (ở thẻ hoặc ở `/dictionary`), store tải lại danh sách rồi chạy lại `analyzeTexts()` trên `input` thô của mọi ảnh đã xong. Ảnh xong sau thời điểm đó cũng được lọc bằng từ điển mới nhất.
 
@@ -186,11 +188,16 @@ Lần gọi đầu tiên cho mỗi ngôn ngữ sau khi LanguageTool khởi độ
 - Trang `/dictionary`: thêm từ (ngôn ngữ, từ, ghi chú; báo trước nếu trùng theo `word_key`), lọc theo ngôn ngữ, tìm kiếm, xóa (toast có "Hoàn tác" thêm lại đúng từ và ghi chú đó), nhập/xuất CSV.
   - CSV: dòng đầu `language,word,note` (cột `note` không bắt buộc, thứ tự cột tùy ý), UTF-8, file xuất có BOM để Excel đọc đúng dấu. Nhập tối đa 1 MB / 5000 dòng, đi qua `addDictionaryWord()` trong một transaction: từ đã có thì bỏ qua, dòng lỗi (sai ngôn ngữ, từ rỗng…) được báo số dòng.
   - API (đều kiểm tra phiên): `GET`/`POST /api/dictionary`, `DELETE /api/dictionary/[id]`, `GET /api/dictionary/export`, `POST /api/dictionary/import`.
-- `usage_daily`: date, images, input_tokens, output_tokens. Chỉ chứa con số.
-  - Trang `/usage`: 3 ô số của tháng hiện tại (ảnh, token vào, token ra; kèm tháng trước để so sánh) và bảng 62 ngày gần nhất (thêm cột token/ảnh). Đọc thẳng SQLite trong server component (`await connection()` trong `<Suspense>`). Ở chế độ mock có banner nhắc mock không được tính.
-  - `date` theo giờ địa phương của máy server. Mỗi ảnh đã tới được Claude cộng 1 vào `images`, kể cả khi kết quả cuối là `failed`, vì mọi lần gọi đều tốn tiền.
-  - `input_tokens` = token đầu vào chưa cache + token ghi cache + token đọc cache. Token của mọi lần retry đều được cộng.
+- `usage_daily`: date, model, images, input_tokens, cache_read_tokens, cache_write_tokens, output_tokens. Khóa chính (date, model). Chỉ chứa con số.
+  - Bốn cột token tách riêng vì mỗi loại tính giá khác nhau: `input_tokens` chỉ là token vào **không cache**; `cache_read_tokens` / `cache_write_tokens` là token đọc / ghi cache.
+  - `model`: model trả lời (lấy từ phản hồi API, có thể khác `CLAUDE_MODEL` nếu refusal fallback chạy); lần gọi thất bại mà không có phản hồi thì dùng `CLAUDE_MODEL`. Tách theo model để so Sonnet/Haiku.
+  - `date` theo giờ địa phương của máy server. Mỗi ảnh đã tới được Claude cộng 1 vào `images`, kể cả khi kết quả cuối là `failed`, vì mọi lần gọi đều tốn tiền. Token của mọi lần retry đều được cộng.
   - Chế độ mock không ghi vào bảng này.
+  - Trang `/usage` (không quy ra USD; có link "Xem chi phí thực tế trên Anthropic Console"):
+    - 4 ô số của tháng hiện tại: ảnh (kèm token/ảnh, tháng trước), token vào (tổng, kèm phần không cache / đọc cache / ghi cache), token ra, tỉ lệ cache hit.
+    - Bảng tháng này theo model, và bảng 62 ngày gần nhất theo ngày × model. Cột: ảnh, vào (không cache), đọc cache, ghi cache, ra, cache hit, token/ảnh.
+    - Tỉ lệ cache hit = đọc cache / (không cache + đọc cache + ghi cache). Token/ảnh = mọi token (vào các loại + ra) / số ảnh.
+    - Đọc thẳng SQLite trong server component (`await connection()` trong `<Suspense>`). Ở chế độ mock có banner nhắc mock không được tính.
 
 ## Quy tắc ngôn ngữ (áp vào prompt Claude và bộ lọc LanguageTool)
 
