@@ -1,6 +1,11 @@
-/** Runs async tasks with at most `concurrency` in flight (the client allows 4 uploads at once). */
+/**
+ * Runs async tasks with at most `concurrency` in flight (the client allows 4 uploads at once).
+ * Can be paused (e.g. while the login session is expired): running tasks finish, no new
+ * ones start until resume().
+ */
 export class TaskQueue {
   private running = 0;
+  private paused = false;
   private readonly pending: Array<() => Promise<void>> = [];
 
   constructor(private readonly concurrency: number) {}
@@ -10,9 +15,28 @@ export class TaskQueue {
     this.pump();
   }
 
+  /** Puts a task at the head of the queue (a request that must be retried first). */
+  pushFront(task: () => Promise<void>): void {
+    this.pending.unshift(task);
+    this.pump();
+  }
+
+  pause(): void {
+    this.paused = true;
+  }
+
+  resume(): void {
+    this.paused = false;
+    this.pump();
+  }
+
   /** Drops tasks that have not started yet; running ones finish (or get aborted by the caller). */
   clear(): void {
     this.pending.length = 0;
+  }
+
+  get isPaused(): boolean {
+    return this.paused;
   }
 
   get runningCount(): number {
@@ -24,7 +48,7 @@ export class TaskQueue {
   }
 
   private pump(): void {
-    while (this.running < this.concurrency) {
+    while (!this.paused && this.running < this.concurrency) {
       const task = this.pending.shift();
       if (!task) return;
       this.running += 1;

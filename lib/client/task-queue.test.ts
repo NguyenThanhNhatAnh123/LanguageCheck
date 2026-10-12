@@ -35,6 +35,45 @@ describe("TaskQueue", () => {
     expect(ran).toBe(true);
   });
 
+  it("pause() stops new tasks, resume() continues, pushFront() goes first", async () => {
+    const queue = new TaskQueue(1);
+    const order: string[] = [];
+    const task = (name: string) => async () => {
+      order.push(name);
+      await tick();
+    };
+    queue.pause();
+    queue.push(task("a"));
+    queue.push(task("b"));
+    await tick(20);
+    expect(order).toEqual([]);
+    queue.pushFront(task("retry"));
+    queue.resume();
+    await tick(60);
+    expect(order).toEqual(["retry", "a", "b"]);
+  });
+
+  it("lets running tasks finish while paused", async () => {
+    const queue = new TaskQueue(2);
+    const done: string[] = [];
+    queue.push(async () => {
+      await tick(10);
+      done.push("running");
+    });
+    queue.push(async () => {
+      done.push("second");
+    });
+    queue.pause();
+    queue.push(async () => {
+      done.push("later");
+    });
+    await tick(30);
+    expect(done).toEqual(["second", "running"]);
+    queue.resume();
+    await tick(10);
+    expect(done).toEqual(["second", "running", "later"]);
+  });
+
   it("clear() drops tasks that have not started", async () => {
     const queue = new TaskQueue(1);
     const started: number[] = [];
