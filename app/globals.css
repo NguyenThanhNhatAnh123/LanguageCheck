@@ -128,3 +128,9 @@
     @apply font-sans;
   }
 }
+/* Behind mockup thumbnails: mid-gray checks keep both white and black text visible on transparent designs. */
+.bg-checkerboard {
+  background-color: #d4d4d4;
+  background-image: conic-gradient(#a3a3a3 25%, transparent 0 50%, #a3a3a3 0 75%, transparent 0);
+  background-size: 16px 16px;
+}
