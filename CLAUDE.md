@@ -94,6 +94,9 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
     | còn lại | Cần xem lại |
 - "Chữ sau khi sửa" của cả block, có nút copy.
 - Nút "Thêm vào từ điển" cho từ bị báo nhầm. Từ được lưu ngay, và các mockup còn lại trong phiên được lọc lại ở client (tính lại `status` và "Chữ sau khi sửa").
+  - Chỉ hiện khi `original` là **một từ đơn** (không khoảng trắng, không `[?]`, không phải `ocr_uncertain`) và biết ngôn ngữ của block.
+  - Lưu xong hiện toast xác nhận có nút **"Hoàn tác"**: xóa đúng từ vừa thêm, các lỗi liên quan hiện lại. Từ đã có sẵn thì chỉ báo "đã có trong từ điển" (không có Hoàn tác, để không xóa nhầm từ có từ trước).
+  - Cơ chế lọc lại: `SessionProvider` giữ bản sao từ điển. Sau mỗi thay đổi từ điển (ở thẻ hoặc ở `/dictionary`), store tải lại danh sách rồi chạy lại `analyzeTexts()` trên `input` thô của mọi ảnh đã xong. Ảnh xong sau thời điểm đó cũng được lọc bằng từ điển mới nhất.
 
 ### Quy đổi severity LanguageTool
 
@@ -180,7 +183,11 @@ Lần gọi đầu tiên cho mỗi ngôn ngữ sau khi LanguageTool khởi độ
   - `word_key`: do code tính bằng `toWordKey()`: chuẩn hóa NFC, rồi `toLocaleLowerCase` theo ngôn ngữ; riêng de-DE đổi `ß` → `ss`. Nhờ vậy `FÜR`/`für` và `STRASSE`/`straße` là cùng một từ.
   - Lý do không dùng `lower(word)` của SQLite: hàm này chỉ đổi hoa/thường cho chữ không dấu, nên coi `FÜR` và `für` là hai từ khác nhau.
   - Mọi chỗ so khớp với từ điển (lọc lỗi ở server, lọc lại ở client, kiểm tra trùng khi thêm từ) đều so theo `word_key` và đúng ngôn ngữ.
+- Trang `/dictionary`: thêm từ (ngôn ngữ, từ, ghi chú; báo trước nếu trùng theo `word_key`), lọc theo ngôn ngữ, tìm kiếm, xóa (toast có "Hoàn tác" thêm lại đúng từ và ghi chú đó), nhập/xuất CSV.
+  - CSV: dòng đầu `language,word,note` (cột `note` không bắt buộc, thứ tự cột tùy ý), UTF-8, file xuất có BOM để Excel đọc đúng dấu. Nhập tối đa 1 MB / 5000 dòng, đi qua `addDictionaryWord()` trong một transaction: từ đã có thì bỏ qua, dòng lỗi (sai ngôn ngữ, từ rỗng…) được báo số dòng.
+  - API (đều kiểm tra phiên): `GET`/`POST /api/dictionary`, `DELETE /api/dictionary/[id]`, `GET /api/dictionary/export`, `POST /api/dictionary/import`.
 - `usage_daily`: date, images, input_tokens, output_tokens. Chỉ chứa con số.
+  - Trang `/usage`: 3 ô số của tháng hiện tại (ảnh, token vào, token ra; kèm tháng trước để so sánh) và bảng 62 ngày gần nhất (thêm cột token/ảnh). Đọc thẳng SQLite trong server component (`await connection()` trong `<Suspense>`). Ở chế độ mock có banner nhắc mock không được tính.
   - `date` theo giờ địa phương của máy server. Mỗi ảnh đã tới được Claude cộng 1 vào `images`, kể cả khi kết quả cuối là `failed`, vì mọi lần gọi đều tốn tiền.
   - `input_tokens` = token đầu vào chưa cache + token ghi cache + token đọc cache. Token của mọi lần retry đều được cộng.
   - Chế độ mock không ghi vào bảng này.
@@ -222,7 +229,7 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
   - Trạng thái dùng badge/chấm nhạt (`components/status-badge.tsx`): đỏ = Lỗi, vàng = Nghi ngờ, xanh = Không lỗi, xám = còn lại.
   - Sáng/tối theo hệ thống (`next-themes`, class `dark` trên `<html>`). Nút trên header đổi vòng: theo hệ thống → sáng → tối.
 - **Bố cục:**
-  - Header mỏng (cao 48px, sticky): tên tool, badge LanguageTool, nút đổi theme, đăng xuất.
+  - Header mỏng (cao 48px, sticky): tên tool, link Kiểm tra / Từ điển / Chi phí (trang đang mở được tô nền), badge LanguageTool, nút đổi theme (icon và tooltip ghi trạng thái hiện tại: Theo hệ thống / Sáng / Tối), đăng xuất.
   - Nội dung căn giữa `max-w-5xl`.
   - Chưa có ảnh: vùng kéo thả lớn `rounded-2xl` ở giữa màn hình với câu hướng dẫn ngắn. Đã có ảnh: vùng kéo thả thu gọn thành một thanh.
   - Thẻ mockup `rounded-xl`, khoảng trắng rộng.
@@ -249,6 +256,10 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
   - Cache system prompt và từ điển bằng prompt caching. Mỗi model có ngưỡng độ dài tối thiểu để cache; kiểm tra `cache_read_input_tokens` thực tế. Prompt chưa đủ dài thì chấp nhận không cache; từ điển lớn dần thì cache sẽ tự có tác dụng.
 - zod validate mọi input API và mọi output của Claude. Không dùng `any`.
 - Unit test bằng Vitest (`npm test`), file `*.test.ts` đặt cạnh code. Test cần DB thì dùng SQLite in-memory dựng từ migration thật.
+- `npm run eval [-- --dir <thư mục>]`: chạy mọi ảnh trong `test-images/expected.csv` qua đúng pipeline của `/api/analyze` (hàm dùng chung `analyzeMockup()` trong `lib/analysis/analyze-mockup.ts`).
+  - Ảnh được thu nhỏ giống trình duyệt bằng `sharp` (devDependency).
+  - In tỉ lệ bắt đúng và báo nhầm (tính "Lỗi + Nghi ngờ", và chỉ "Lỗi"), cùng tỉ lệ "Chữ sau khi sửa" khớp đáp án. Lưu kết quả vào `<thư mục>/eval-results/<thời điểm>.json`.
+  - `expected.csv`: cột `file,expected_text,has_error`, mẫu ở `docs/expected.example.csv`. Có API key thì gọi Claude thật và ghi vào `usage_daily`; không có key (dev) thì chạy mock.
 - Trước khi viết code dùng Anthropic SDK hoặc Drizzle, **tra docs hiện hành**.
 - Ngôn ngữ:
   - Text hiển thị cho người dùng viết bằng tiếng Việt.

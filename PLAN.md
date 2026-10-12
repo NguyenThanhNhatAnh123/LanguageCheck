@@ -209,6 +209,15 @@ Làm Giai đoạn 5:
 - Thêm một từ vào từ điển thì từ đó không còn bị báo lỗi nữa, cả trong phiên hiện tại lẫn lần tải lên sau.
 - Chạy `npm run eval` và ghi lại kết quả để so sánh sau này.
 
+**Trạng thái (2026-10-12):** đã xong, chạy bằng mock Claude + LanguageTool thật, kiểm tra tự động trên Edge chạy ẩn:
+- "Thêm vào từ điển" trên thẻ HAIDA: toast có "Hoàn tác", thẻ chuyển từ Nghi ngờ sang Không lỗi. Hoàn tác → lỗi hiện lại, từ điển trống.
+- `/dictionary`: thêm (có cảnh báo trùng `STRASSE`/`Straße`), xóa + Hoàn tác, nhập CSV (1 mới, 1 trùng, 1 dòng lỗi được báo), xuất CSV đúng nội dung. Chuyển qua `/dictionary`, `/usage` rồi về `/` vẫn giữ phiên.
+- Lần tải lên sau: server lọc bằng từ điển trong SQLite (đã có từ Giai đoạn 3).
+- `npm run eval -- --dir <thư mục>` chạy đúng ở chế độ mock (phân loại đúng / bỏ sót / báo nhầm / thất bại, lưu JSON).
+- Chế độ mock không ghi vào `usage_daily` (bảng đang trống, không có dữ liệu mock nào cần xóa).
+
+**Còn phải làm khi có API key và bộ ảnh test:** tạo `test-images/expected.csv` (mẫu `docs/expected.example.csv`), chạy `npm run eval` với Claude thật, ghi lại tỉ lệ bắt đúng / báo nhầm làm mốc. Chạy lại sau mỗi lần đổi prompt, model hoặc effort (và sau Giai đoạn 7).
+
 ---
 
 ## Giai đoạn 6 — Đưa lên máy server + Cloudflare Tunnel
