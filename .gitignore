@@ -17,3 +17,10 @@ test-images/
 
 # logs
 *.log
+
+# misc
+/coverage
+/build
+.DS_Store
+*.pem
+.vercel
