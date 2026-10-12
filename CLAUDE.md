@@ -133,10 +133,22 @@ Các hàm quy đổi, gắn nhãn, merge, xử lý phương án sửa, tính `st
 ### Khi có sự cố
 
 - **LanguageTool lỗi hoặc tắt**: vẫn trả kết quả Claude, kèm `lt_status = "offline"`. UI hiện banner "LanguageTool đang lỗi, kết quả chỉ từ Claude".
+- **LanguageTool chậm ở lần gọi đầu**: xem mục "LanguageTool: timeout và nạp sẵn".
 - **Claude trả lỗi 429/529**: retry với backoff.
 - **JSON từ Claude sai schema**: retry 1 lần, vẫn sai thì trả `failed`.
 - **Claude bị cắt giữa chừng** (`stop_reason = "max_tokens"`): `max_tokens` mặc định ~3000. Bị cắt thì retry 1 lần với giới hạn gấp đôi (~6000), vì retry y nguyên sẽ bị cắt đúng chỗ cũ. Vẫn bị cắt thì trả `failed`.
 - **Giới hạn đồng thời**: server cho phép tối đa `CLAUDE_MAX_CONCURRENCY` lời gọi Claude cùng lúc, chung cho mọi người dùng.
+
+### LanguageTool: timeout và nạp sẵn
+
+Lần gọi đầu tiên cho mỗi ngôn ngữ sau khi LanguageTool khởi động rất chậm, vì nó phải nạp dữ liệu ngôn ngữ. Đo trên máy dev: de-DE ~12s, fr-FR ~6s.
+
+- **Timeout** mỗi lời gọi LanguageTool là 30s, retry 1 lần.
+- **Nạp sẵn**: gửi 1 câu ngắn cố định cho mỗi ngôn ngữ (`en-US`, `de-DE`, `fr-FR`, `es-ES`).
+  - Chạy nền khi app khởi động, **không chặn** app khởi động.
+  - LanguageTool chưa sẵn sàng thì thử lại với backoff, đến khi nạp xong.
+  - Chạy lại mỗi khi `/api/lt-health` thấy LanguageTool chuyển từ offline sang online. Server nhớ trạng thái lần kiểm tra trước trong bộ nhớ.
+  - Đang có một lượt nạp sẵn chạy thì không mở thêm lượt mới.
 
 ## Dữ liệu lưu lâu dài (SQLite, `DATABASE_PATH`)
 
@@ -155,6 +167,8 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
   - Vẫn phải bắt: sai đuôi từ, sai giống hoặc cách, mất umlaut (`FUR` → `FÜR`).
 - **fr-FR**
   - Thiếu dấu trên chữ in hoa (`ETE` thay vì `ÉTÉ`) → `info`.
+    - Với LanguageTool (thường báo `misspelling`): nếu `original` in hoa toàn bộ và phương án đầu tiên chỉ khác `original` ở dấu (bỏ dấu và bỏ phân biệt hoa thường thì giống hệt), hạ xuống `info`.
+    - Quy tắc này **chỉ áp cho fr-FR**. Ở es-ES (`TU` → `TÚ`) và de-DE (`FUR` → `FÜR`), thiếu dấu vẫn là `error`.
   - Thiếu dấu cách trước `! ? : ;` → `info`.
   - Vẫn phải bắt: sai hợp giống/số, sai dấu trên chữ thường.
 - **es-ES**

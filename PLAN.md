@@ -77,7 +77,8 @@ Phần app và Cloudflare Tunnel sẽ cài ở Giai đoạn 6, khi code đã ch�
 Đọc CLAUDE.md. Làm Giai đoạn 1:
 - Khởi tạo Next.js (App Router, TS strict, Tailwind, shadcn/ui), better-sqlite3 + Drizzle (DATABASE_PATH), migration cho bảng dictionary và usage_daily.
 - Đăng nhập 1 tài khoản chung đúng theo mục "Đăng nhập" trong CLAUDE.md: trang /login, cookie phiên ký bằng SESSION_SECRET kèm SESSION_VERSION, middleware chặn mọi route, khóa 15 phút sau 5 lần sai theo IP (CF-Connecting-IP, fallback IP request). Script `npm run hash-password` in ra giá trị APP_PASSWORD_HASH_B64.
-- lib/languagetool.ts: hàm check(text, language), timeout 15s, retry 1 lần.
+- lib/languagetool.ts: hàm check(text, language), timeout 30s, retry 1 lần.
+- Nạp sẵn LanguageTool theo mục "LanguageTool: timeout và nạp sẵn" trong CLAUDE.md: chạy nền khi app khởi động (không chặn), thử lại với backoff đến khi LanguageTool sẵn sàng, chạy lại khi /api/lt-health thấy LanguageTool chuyển từ offline sang online.
 - GET /api/lt-health và badge trạng thái LanguageTool trên header (poll mỗi 30s).
 - Trang /lt-test (chỉ hiện khi NODE_ENV=development): ô nhập text + chọn ngôn ngữ → hiển thị JSON LanguageTool trả về.
 - Nút Đăng xuất. Tạo .env.example.
@@ -90,6 +91,7 @@ Tra docs hiện hành của Drizzle trước khi viết code.
 - Tăng `SESSION_VERSION` và khởi động lại app thì bị đăng xuất.
 - `/lt-test` trả về lỗi cho câu `This are an test.`
 - Badge LanguageTool chuyển đỏ khi tắt `start-languagetool.bat`.
+- Tắt LanguageTool rồi khởi động app: app vẫn lên bình thường. Bật LanguageTool lên: badge chuyển xanh, log báo đã nạp sẵn đủ 4 ngôn ngữ, và lần check tiếng Đức đầu tiên trên `/lt-test` trả về nhanh (không mất ~12s).
 
 ---
 
@@ -128,6 +130,7 @@ Làm Giai đoạn 3 theo CLAUDE.md:
 - Issue chỉ LanguageTool báo: gắn nhãn tiếng Việt theo issueType (bảng trong CLAUDE.md) kèm message gốc. Không gọi Claude để dịch.
 - LanguageTool lỗi: vẫn trả kết quả Claude kèm lt_status = "offline".
 - Unit test cho: map offset, định vị bằng occurrence, quy đổi severity và nhãn tiếng Việt, bộ lọc ngôn ngữ, merge (gồm ca GONNA), tính status, chữ sau khi sửa.
+- Unit test cho quy tắc "in hoa toàn bộ + chỉ khác dấu" (chỉ áp cho fr-FR): ETE → ÉTÉ (fr-FR, LanguageTool báo misspelling) hạ xuống info; TU → TÚ (es-ES) và FUR → FÜR (de-DE) vẫn giữ error.
 - Unit test riêng cho chuyển kiểu chữ + bỏ trùng phương án: YOUR → YOU'RE; Your → You're; your → you're; "A" trong block thường → "An", trong block in hoa → "AN"; McDonald giữ nguyên; ß → SS khi in hoa (de-DE); É giữ dấu khi in hoa (fr-FR); "you're" và "YOU'RE" từ 2 nguồn chỉ còn 1; "Chữ sau khi sửa" của block in hoa vẫn in hoa toàn bộ.
 ```
 
