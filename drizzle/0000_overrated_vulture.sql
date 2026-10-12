@@ -9,8 +9,12 @@ CREATE TABLE `dictionary` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `dictionary_language_word_key_unique` ON `dictionary` (`language`,`word_key`);--> statement-breakpoint
 CREATE TABLE `usage_daily` (
-	`date` text PRIMARY KEY NOT NULL,
+	`date` text NOT NULL,
+	`model` text NOT NULL,
 	`images` integer DEFAULT 0 NOT NULL,
 	`input_tokens` integer DEFAULT 0 NOT NULL,
-	`output_tokens` integer DEFAULT 0 NOT NULL
+	`cache_read_tokens` integer DEFAULT 0 NOT NULL,
+	`cache_write_tokens` integer DEFAULT 0 NOT NULL,
+	`output_tokens` integer DEFAULT 0 NOT NULL,
+	PRIMARY KEY(`date`, `model`)
 );

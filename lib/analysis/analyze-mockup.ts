@@ -31,7 +31,7 @@ export async function analyzeMockup(
   );
 
   // Every attempt that reached Claude is billed. Mock calls cost nothing and are not recorded.
-  if (!runtime.mock && outcome.attempts > 0) recordUsage(outcome.usage);
+  if (!runtime.mock && outcome.attempts > 0) recordUsage(outcome.model ?? runtime.model, outcome.usage);
 
   if (!outcome.ok) {
     return {

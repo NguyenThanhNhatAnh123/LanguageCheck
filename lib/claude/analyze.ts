@@ -25,7 +25,14 @@ export type ClaudeFailureReason =
 
 export type ClaudeOutcome =
   | { ok: true; analysis: ClaudeAnalysis; usage: TokenUsage; attempts: number; model: string }
-  | { ok: false; reason: ClaudeFailureReason; usage: TokenUsage; attempts: number };
+  | {
+      ok: false;
+      reason: ClaudeFailureReason;
+      usage: TokenUsage;
+      attempts: number;
+      /** Model of the last response, if any arrived (usage is recorded under it). */
+      model: string | null;
+    };
 
 export interface AnalyzeWithClaudeInput {
   image: ClaudeRequest["image"];
@@ -57,6 +64,7 @@ export async function analyzeWithClaude(
     let maxTokens = DEFAULT_MAX_TOKENS;
     let retriedTruncation = false;
     let retriedInvalid = false;
+    let model: string | null = null;
 
     for (;;) {
       let response: ClaudeRawResponse;
@@ -65,20 +73,21 @@ export async function analyzeWithClaude(
       } catch (error) {
         const reason = error instanceof ClaudeTransportError ? error.kind : "api";
         console.error(`[claude] request failed: ${error instanceof Error ? error.message : "unknown error"}`);
-        return { ok: false, reason, usage, attempts };
+        return { ok: false, reason, usage, attempts, model };
       }
       attempts += 1;
       usage = addUsage(usage, response.usage);
+      model = response.model;
 
       if (response.stopReason === "refusal") {
         console.warn("[claude] request refused");
-        return { ok: false, reason: "refusal", usage, attempts };
+        return { ok: false, reason: "refusal", usage, attempts, model };
       }
 
       if (response.stopReason === "max_tokens") {
         if (retriedTruncation) {
           console.warn(`[claude] output still truncated at max_tokens=${maxTokens}`);
-          return { ok: false, reason: "truncated", usage, attempts };
+          return { ok: false, reason: "truncated", usage, attempts, model };
         }
         retriedTruncation = true;
         maxTokens *= 2;
@@ -89,7 +98,7 @@ export async function analyzeWithClaude(
       if (!parsed.success) {
         if (retriedInvalid) {
           console.warn(`[claude] output invalid twice (${parsed.reason})`);
-          return { ok: false, reason: "invalid_output", usage, attempts };
+          return { ok: false, reason: "invalid_output", usage, attempts, model };
         }
         retriedInvalid = true;
         continue;

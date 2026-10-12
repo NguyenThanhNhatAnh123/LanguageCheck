@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "06401789-21ed-4edb-a94d-b2e9ccacdac0",
+  "id": "bc55eb82-aa92-4444-b96f-a20ebb60cf2c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "dictionary": {
@@ -72,7 +72,14 @@
         "date": {
           "name": "date",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -92,6 +99,22 @@
           "autoincrement": false,
           "default": 0
         },
+        "cache_read_tokens": {
+          "name": "cache_read_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "cache_write_tokens": {
+          "name": "cache_write_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "output_tokens": {
           "name": "output_tokens",
           "type": "integer",
@@ -103,7 +126,15 @@
       },
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "usage_daily_date_model_pk": {
+          "columns": [
+            "date",
+            "model"
+          ],
+          "name": "usage_daily_date_model_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     }

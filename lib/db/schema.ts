@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 // Relative import: drizzle-kit loads this file outside Next and does not resolve "@/".
 import { LANGUAGES } from "../languages";
 
@@ -23,10 +23,21 @@ export const dictionary = sqliteTable(
   (table) => [uniqueIndex("dictionary_language_word_key_unique").on(table.language, table.wordKey)],
 );
 
-export const usageDaily = sqliteTable("usage_daily", {
-  // YYYY-MM-DD in server local time.
-  date: text("date").primaryKey(),
-  images: integer("images").notNull().default(0),
-  inputTokens: integer("input_tokens").notNull().default(0),
-  outputTokens: integer("output_tokens").notNull().default(0),
-});
+// One row per day and model (comparing Sonnet/Haiku needs them apart). Token columns mirror
+// the four billing rates; all counts include every retry.
+export const usageDaily = sqliteTable(
+  "usage_daily",
+  {
+    // YYYY-MM-DD in server local time.
+    date: text("date").notNull(),
+    // Model that answered (from the API response; the configured one if the call failed).
+    model: text("model").notNull(),
+    images: integer("images").notNull().default(0),
+    // Uncached input tokens only.
+    inputTokens: integer("input_tokens").notNull().default(0),
+    cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
+    cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.date, table.model] })],
+);

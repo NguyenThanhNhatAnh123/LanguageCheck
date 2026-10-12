@@ -6,6 +6,8 @@ import type { ClaudeTransport } from "./transport";
 export interface ClaudeRuntime {
   transport: ClaudeTransport;
   mock: boolean;
+  /** Configured model (CLAUDE_MODEL), or "mock". */
+  model: string;
   maxConcurrency: number;
 }
 
@@ -25,9 +27,10 @@ export function getClaudeRuntime(): ClaudeRuntime {
       ? {
           transport: createLiveTransport({ apiKey: config.apiKey, model: config.model, effort: config.effort }),
           mock: false,
+          model: config.model,
           maxConcurrency: config.maxConcurrency,
         }
-      : { transport: createMockTransport(), mock: true, maxConcurrency: config.maxConcurrency };
+      : { transport: createMockTransport(), mock: true, model: "mock", maxConcurrency: config.maxConcurrency };
 
   if (runtime.mock) console.info("[claude] mock mode: answering from fixtures/claude");
   globalForClaude.__podQaClaudeRuntime = { key, runtime };
