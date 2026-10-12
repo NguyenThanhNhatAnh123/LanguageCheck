@@ -65,10 +65,17 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
    - `ok` và `no_text`: chỉ hiện số lượng
    - "Đã kiểm X/Y": X gồm cả ảnh đã xong và ảnh thất bại.
    - Banner "LanguageTool đang lỗi, kết quả chỉ từ Claude" khi có ảnh trả về `ltStatus = "offline"`. Ở chế độ mock có thêm banner báo kết quả Claude là dữ liệu mẫu.
-   - Phiên đăng nhập hết hạn giữa chừng (API trả 401): ảnh đó vào nhóm Thất bại với hướng dẫn đăng nhập lại ở tab khác rồi bấm "Thử lại". Badge trên header đổi thành "Phiên đăng nhập đã hết hạn" (link mở `/login` ở tab mới). **Không tự chuyển sang `/login`**, vì chuyển trang sẽ mất toàn bộ kết quả của phiên.
+   - Phiên đăng nhập hết hạn giữa chừng (bất kỳ request nào trả 401, kể cả health check của badge):
+     - **Tạm dừng cả hàng đợi.** Ảnh đang gửi dở được đưa về đầu hàng chờ, không ảnh nào bị đánh dấu Thất bại.
+     - Hiện banner "Phiên đăng nhập hết hạn — đăng nhập lại để tiếp tục" trên mọi trang, kèm nút mở `/login?next=/reauth` ở tab mới. Badge trên header cũng báo hết hạn.
+     - Trong lúc chờ, client gọi `GET /api/session` mỗi 3 giây và mỗi khi tab được focus. Đăng nhập lại xong (ở bất kỳ tab nào) thì tự chạy tiếp hàng đợi.
+     - **Không tự chuyển sang `/login`**, vì chuyển trang sẽ mất toàn bộ kết quả của phiên.
    - File `.zip` và thư mục: chỉ lấy JPG/PNG/WebP. Bỏ qua file khác, file ẩn (tên bắt đầu bằng `.`) và thư mục `__MACOSX`. Sau khi thêm, báo số ảnh đã thêm và số file bị bỏ qua.
    - Ảnh thu nhỏ có nền ô bàn cờ xám, để thiết kế nền trong suốt có chữ trắng vẫn nhìn thấy được.
-5. Nút **"Kết thúc phiên"** (có hộp xác nhận) xóa state, hủy các request đang chạy và revoke toàn bộ object URL. Rời trang bằng điều hướng trong app cũng kết thúc phiên như vậy. Khi còn kết quả mà người dùng đóng hoặc tải lại tab, bật cảnh báo `beforeunload`.
+5. **Phiên kiểm tra** (File, object URL, kết quả, hàng đợi) nằm trong store client `SessionProvider` (`components/session/session-provider.tsx`) gắn ở root layout. Chuyển trang trong app (`/`, `/dictionary`, `/usage`...) **không** mất kết quả. Phiên chỉ mất khi:
+   - đóng tab hoặc tải lại trang (có cảnh báo `beforeunload` khi còn ảnh trong phiên);
+   - bấm **"Kết thúc phiên"**: xóa state, hủy request đang chạy, revoke toàn bộ object URL. Có hộp xác nhận, nhưng bỏ qua khi chưa có ảnh nào xong (chưa có gì để mất);
+   - **đăng xuất**: kết thúc phiên luôn, vì tài khoản dùng chung không được để lại kết quả cho người sau. Còn ảnh trong phiên thì hỏi xác nhận trước.
 
 ### Thẻ mockup lỗi
 
