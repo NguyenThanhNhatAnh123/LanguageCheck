@@ -38,8 +38,12 @@ You receive ONE design image. Do two things, in this order:
 Return ONLY the structured result.
 
 TEAM DICTIONARY:
-{{DICTIONARY}}   ← chèn theo dạng: "en-US: Haida, Lakota, ...\nde-DE: ...\n..."
+{{DICTIONARY}}
 ```
+
+`{{DICTIONARY}}` được thay bằng từ điển team, mỗi ngôn ngữ một dòng: `en-US: Haida, Lakota, ...`. Từ điển trống thì thay bằng `(empty)`.
+
+Bản dùng trong code nằm ở `lib/claude/prompt.ts`. Có unit test bảo đảm hai bản luôn giống hệt nhau, nên sửa prompt thì sửa cả hai nơi.
 
 ## Output schema
 
