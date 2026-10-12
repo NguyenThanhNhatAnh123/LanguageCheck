@@ -49,6 +49,8 @@ winget install --id Cloudflare.cloudflared
 ```
 Mở PowerShell mới, chạy `where.exe java` và `where.exe node`. Ghi lại 2 đường dẫn này để dùng ở các bước sau.
 
+Chạy `node -v` và `npm -v`: cần Node **24 trở lên** và npm **11.19 trở lên**. npm cũ hơn sẽ cố biên dịch `better-sqlite3` từ mã nguồn và `npm ci` thất bại (xem "Môi trường dev" trong CLAUDE.md).
+
 ### 3. Cài LanguageTool thành Windows service
 ```powershell
 mkdir C:\LanguageTool

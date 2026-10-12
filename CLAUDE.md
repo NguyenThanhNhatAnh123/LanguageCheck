@@ -217,4 +217,7 @@ DATABASE_PATH=./data/app.db
 
 ## Môi trường dev
 
-Máy dev và máy server cần Node.js 24 LTS trở lên, Git, Java 21 (LanguageTool chạy được với Java 17 trở lên) và chạy LanguageTool bằng `scripts/start-languagetool.bat`. Script này chỉ dùng cho máy dev; máy server chạy LanguageTool như một Windows service.
+Máy dev và máy server đều cần Node.js 24 LTS trở lên, Git và Java 21 (LanguageTool chạy được với Java 17 trở lên).
+
+- **npm phải từ 11.19 trở lên** (có sẵn từ Node 24.20). `package.json` có `allowScripts` chặn script cài đặt của `esbuild`, `better-sqlite3`, `unrs-resolver`, vì cả ba đều có sẵn binary dựng sẵn. npm cũ không hiểu `allowScripts`, nên sẽ chạy `node-gyp rebuild` ngầm của `better-sqlite3`, và `npm ci` thất bại trên máy không có Python và Visual Studio Build Tools.
+- Máy dev chạy LanguageTool bằng `scripts/start-languagetool.bat`. Máy server chạy LanguageTool như một Windows service.
