@@ -51,7 +51,7 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
 3. Server xử lý trong bộ nhớ, theo thứ tự:
    1. **Gọi Claude** vision với prompt trong `docs/claude-analyze-prompt.md`, có từ điển team trong system prompt. Validate kết quả bằng zod. Định vị từng issue: tìm lần xuất hiện thứ `occurrence` (thiếu thì mặc định 1) của `original` trong `blocks[block_index].text`.
    2. **Gọi LanguageTool.** Gom các block theo `blocks[].language`. Với mỗi ngôn ngữ, nối text các block bằng `"\n"`, gửi `POST {LT_URL}/v2/check` (form-urlencoded: `text`, `language`), rồi map `offset/length` ngược về từng block. Block `unknown` không gửi LanguageTool, chỉ dùng kết quả Claude.
-   3. **Lọc và quy đổi.** Bỏ các match chính tả có từ nằm trong từ điển (đúng ngôn ngữ, không phân biệt hoa thường). Quy đổi severity theo mục "Quy đổi severity LanguageTool", rồi áp các quy tắc ngôn ngữ ở dưới.
+   3. **Lọc và quy đổi.** Bỏ các match chính tả có từ nằm trong từ điển (đúng ngôn ngữ, so theo `word_key`). Quy đổi severity theo mục "Quy đổi severity LanguageTool", rồi áp các quy tắc ngôn ngữ ở dưới.
    4. **Merge 2 nguồn**, xử lý phương án sửa, áp quy tắc "chữ in hoa thiếu dấu" của fr-FR, rồi tính `status` và "Chữ sau khi sửa".
    5. **Trả JSON về client.** Cộng token đã dùng vào bảng thống kê ngày. Buffer ảnh bị bỏ đi.
 4. Client gom kết quả vào state và hiển thị:
@@ -145,15 +145,22 @@ Lần gọi đầu tiên cho mỗi ngôn ngữ sau khi LanguageTool khởi độ
 
 - **Timeout** mỗi lời gọi LanguageTool là 30s, retry 1 lần.
 - **Nạp sẵn**: gửi 1 câu ngắn cố định cho mỗi ngôn ngữ (`en-US`, `de-DE`, `fr-FR`, `es-ES`).
+  - **Mỗi câu có 1 lỗi chính tả cố ý** (ví dụ `Das ist ein kurzer Tset.`). Lý do: câu đúng hoàn toàn không làm LanguageTool nạp phần tạo gợi ý sửa chính tả, nên lỗi thật đầu tiên vẫn chậm. Đo trên máy dev, lần check tiếng Đức đầu tiên: không nạp sẵn ~12s, câu không lỗi ~4,1s, câu có lỗi ~2,8s (gần mức ổn định ~1,5–2s).
   - Chạy nền khi app khởi động, **không chặn** app khởi động.
-  - LanguageTool chưa sẵn sàng thì thử lại với backoff, đến khi nạp xong.
+  - LanguageTool chưa sẵn sàng thì thử lại với backoff (1s, gấp đôi mỗi lần, tối đa 60s), đến khi nạp xong.
   - Chạy lại mỗi khi `/api/lt-health` thấy LanguageTool chuyển sang online từ `offline` hoặc `unknown`.
   - Trạng thái lần kiểm tra trước lưu trên `globalThis`, để không bị reset khi hot reload ở dev. Giá trị ban đầu là `"unknown"`, nên lần health check thành công đầu tiên cũng kích hoạt nạp sẵn.
+  - Nạp sẵn xong thì đặt trạng thái là `"online"`. Lý do: nếu không, lần health check thành công đầu tiên sau khi khởi động vẫn thấy `unknown` → `online` và nạp sẵn thêm lần nữa.
   - Đang có một lượt nạp sẵn chạy thì không mở thêm lượt mới. Cờ "đang nạp sẵn" cũng lưu trên `globalThis`.
+  - **Đánh thức lượt đang chờ:** nếu lượt nạp sẵn đang ngủ chờ backoff mà health check thấy LanguageTool vừa online, thì cắt ngang lần chờ đó để thử lại ngay. Vẫn chỉ có 1 lượt chạy. Lý do: không có bước này, LanguageTool lên đúng lúc backoff đang ở 60s thì phải chờ thêm tới 60s mới nạp, trong khi request thật phải chịu chậm.
 
 ## Dữ liệu lưu lâu dài (SQLite, `DATABASE_PATH`)
 
-- `dictionary`: id, language, word, note, created_at. Ràng buộc unique (language, lower(word)).
+- `dictionary`: id, language, word, word_key, note, created_at. Ràng buộc unique (language, word_key).
+  - `word`: chữ như người dùng nhập, dùng để hiển thị.
+  - `word_key`: do code tính bằng `toWordKey()`: chuẩn hóa NFC, rồi `toLocaleLowerCase` theo ngôn ngữ; riêng de-DE đổi `ß` → `ss`. Nhờ vậy `FÜR`/`für` và `STRASSE`/`straße` là cùng một từ.
+  - Lý do không dùng `lower(word)` của SQLite: hàm này chỉ đổi hoa/thường cho chữ không dấu, nên coi `FÜR` và `für` là hai từ khác nhau.
+  - Mọi chỗ so khớp với từ điển (lọc lỗi ở server, lọc lại ở client, kiểm tra trùng khi thêm từ) đều so theo `word_key` và đúng ngôn ngữ.
 - `usage_daily`: date, images, input_tokens, output_tokens. Chỉ chứa con số.
 
 ## Quy tắc ngôn ngữ (áp vào prompt Claude và bộ lọc LanguageTool)
@@ -186,6 +193,7 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
   - Dùng output có cấu trúc: tool use với `input_schema`, hoặc structured outputs nếu SDK hiện hành hỗ trợ.
   - Cache system prompt và từ điển bằng prompt caching. Mỗi model có ngưỡng độ dài tối thiểu để cache; kiểm tra `cache_read_input_tokens` thực tế. Prompt chưa đủ dài thì chấp nhận không cache; từ điển lớn dần thì cache sẽ tự có tác dụng.
 - zod validate mọi input API và mọi output của Claude. Không dùng `any`.
+- Unit test bằng Vitest (`npm test`), file `*.test.ts` đặt cạnh code. Test cần DB thì dùng SQLite in-memory dựng từ migration thật.
 - Trước khi viết code dùng Anthropic SDK hoặc Drizzle, **tra docs hiện hành**.
 - Ngôn ngữ:
   - Text hiển thị cho người dùng viết bằng tiếng Việt.
@@ -209,4 +217,4 @@ DATABASE_PATH=./data/app.db
 
 ## Môi trường dev
 
-Máy dev cần Node.js 20+, Git, Java 21 và chạy LanguageTool bằng `scripts/start-languagetool.bat`. Script này chỉ dùng cho máy dev; máy server chạy LanguageTool như một Windows service.
+Máy dev và máy server cần Node.js 24 LTS trở lên, Git, Java 21 (LanguageTool chạy được với Java 17 trở lên) và chạy LanguageTool bằng `scripts/start-languagetool.bat`. Script này chỉ dùng cho máy dev; máy server chạy LanguageTool như một Windows service.

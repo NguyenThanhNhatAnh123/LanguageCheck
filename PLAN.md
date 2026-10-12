@@ -10,7 +10,7 @@ Mỗi giai đoạn gồm 3 phần: việc bạn tự làm, prompt dán vào Clau
 
 1. **Anthropic Console**: tạo API key riêng cho tool. **Đặt giới hạn chi tiêu theo tháng.**
 2. **Cloudflare**: tạo tài khoản và mua tên miền.
-3. **Máy dev** (máy bạn dùng Claude Code): cài Node.js 20+, Git và Java 21.
+3. **Máy dev** (máy bạn dùng Claude Code): cài Node.js 24 LTS trở lên, Git và Java 21.
    ```
    winget install OpenJS.NodeJS.LTS
    winget install Git.Git
@@ -124,7 +124,7 @@ Tra docs Anthropic SDK hiện hành (vision, tool use / structured outputs, prom
 Làm Giai đoạn 3 theo CLAUDE.md:
 - Trong /api/analyze, sau bước Claude: gom block theo blocks[].language, mỗi ngôn ngữ nối text bằng "\n" rồi gọi LanguageTool một lần, map offset về từng block. Block unknown bỏ qua LanguageTool.
 - Định vị issue của Claude bằng original + occurrence.
-- Lọc match chính tả có từ trong dictionary. Quy đổi severity LanguageTool theo bảng trong CLAUDE.md, rồi áp các quy tắc ngôn ngữ (quy tắc ngôn ngữ đứng trên bảng quy đổi).
+- Lọc match chính tả có từ trong dictionary: dùng loadDictionaryMatcher() / createDictionaryMatcher() trong lib/dictionary (so theo word_key, đúng ngôn ngữ). Quy đổi severity LanguageTool theo bảng trong CLAUDE.md, rồi áp các quy tắc ngôn ngữ (quy tắc ngôn ngữ đứng trên bảng quy đổi).
 - Merge 2 nguồn (Claude thắng khi intentional_possible = true hoặc info), tính status (info không tính) và "Chữ sau khi sửa". Đặt các hàm này trong module dùng chung client + server.
 - Phương án sửa theo mục "Phương án sửa" trong CLAUDE.md: chuyển về kiểu chữ của original (in hoa toàn bộ / viết hoa chữ đầu / thường / 1 chữ cái / kiểu khác giữ nguyên, theo locale), bỏ trùng không phân biệt hoa thường, Claude trước LanguageTool sau, tối đa 3.
 - Issue chỉ LanguageTool báo: gắn nhãn tiếng Việt theo issueType (bảng trong CLAUDE.md) kèm message gốc. Không gọi Claude để dịch.
@@ -169,8 +169,8 @@ Làm Giai đoạn 4 theo mục "Luồng xử lý" và "Thẻ mockup lỗi" trong
 **Prompt:**
 ```
 Làm Giai đoạn 5:
-- Nút "Thêm vào từ điển" trên từng lỗi: lưu từ (đúng ngôn ngữ) vào SQLite, rồi lọc lại ngay các mockup trong phiên ở client (lỗi đó biến mất, status tính lại).
-- Trang /dictionary: xem/thêm/xóa từ theo ngôn ngữ, ghi chú, import/export CSV.
+- Nút "Thêm vào từ điển" trên từng lỗi: lưu từ (đúng ngôn ngữ) bằng addDictionaryWord() trong lib/dictionary (đã có từ Giai đoạn 1: tự tính word_key; từ đã có thì trả created = false, báo "Từ này đã có trong từ điển"). Rồi lọc lại ngay các mockup trong phiên ở client bằng createDictionaryMatcher() (lỗi đó biến mất, status tính lại).
+- Trang /dictionary: xem/thêm/xóa từ theo ngôn ngữ, ghi chú, import/export CSV. Import cũng đi qua addDictionaryWord() để không tạo bản trùng.
 - Trang /usage: bảng usage_daily (số ảnh, token vào/ra theo ngày) + tổng tháng này.
 - Script `npm run eval`: chạy toàn bộ test-images, so với test-images/expected.csv, in tỉ lệ bắt đúng và tỉ lệ báo nhầm.
 ```
