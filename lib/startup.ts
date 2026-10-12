@@ -1,12 +1,15 @@
+import { assertAuthConfig } from "@/lib/auth/credentials";
 import { assertProductionClaudeConfig } from "@/lib/claude/config";
 import { startWarmup } from "@/lib/languagetool-warmup";
 
 /** Node.js-only server startup, called from instrumentation.ts. */
 export function runServerStartup(): void {
-  // Production must have a real Claude configuration: stop at startup with a clear message
-  // instead of serving requests that can only fail. Mock mode is never allowed there.
+  // Production must have a real Claude configuration and usable login settings: stop at
+  // startup with a clear message instead of serving requests that can only fail. Mock mode
+  // is never allowed there.
   try {
     assertProductionClaudeConfig();
+    if (process.env.NODE_ENV === "production") assertAuthConfig();
   } catch (error) {
     // A thrown error only marks the server as broken while it keeps running; exit instead.
     console.error(`[startup] ${error instanceof Error ? error.message : String(error)}. Server is stopping.`);

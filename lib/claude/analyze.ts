@@ -72,7 +72,9 @@ export async function analyzeWithClaude(
         response = await options.transport.send({ ...input, maxTokens, attempt: attempts });
       } catch (error) {
         const reason = error instanceof ClaudeTransportError ? error.kind : "api";
-        console.error(`[claude] request failed: ${error instanceof Error ? error.message : "unknown error"}`);
+        // Transport errors carry our own wording; anything unexpected is logged by type only.
+        const detail = error instanceof ClaudeTransportError ? error.message : error instanceof Error ? error.name : "unknown error";
+        console.error(`[claude] request failed: ${detail}`);
         return { ok: false, reason, usage, attempts, model };
       }
       attempts += 1;

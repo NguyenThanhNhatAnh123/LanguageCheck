@@ -13,7 +13,7 @@ const authEnvSchema = z.object({
 });
 
 const languageToolEnvSchema = z.object({
-  LT_URL: z.preprocess(emptyToUndefined, z.url().default("http://localhost:8081")),
+  LT_URL: z.preprocess(emptyToUndefined, z.url().default("http://127.0.0.1:8081")),
 });
 
 const databaseEnvSchema = z.object({

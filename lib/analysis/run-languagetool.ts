@@ -1,5 +1,5 @@
 import type { ClaudeBlock } from "@/lib/claude/schema";
-import { check } from "@/lib/languagetool";
+import { check, LanguageToolError } from "@/lib/languagetool";
 import { recordLanguageToolHealth } from "@/lib/languagetool-warmup";
 import { groupBlocksByLanguage, mapMatchToBlock } from "./languagetool-rules";
 import type { LtBlockMatch, LtStatus } from "./types";
@@ -23,7 +23,10 @@ export async function runLanguageTool(blocks: readonly ClaudeBlock[]): Promise<{
     recordLanguageToolHealth(true);
     return { status: "online", matches: perGroup.flat() };
   } catch (error) {
-    console.warn(`[analyze] LanguageTool unavailable, Claude results only: ${error instanceof Error ? error.message : "unknown error"}`);
+    // LanguageToolError messages are written by us and never contain text; anything else is
+    // reduced to its type, in case its message quotes a response.
+    const reason = error instanceof LanguageToolError ? error.message : error instanceof Error ? error.name : "unknown error";
+    console.warn(`[analyze] LanguageTool unavailable, Claude results only: ${reason}`);
     recordLanguageToolHealth(false);
     return { status: "offline", matches: [] };
   }
