@@ -180,6 +180,17 @@ Làm Giai đoạn 4 theo mục "Luồng xử lý" và "Thẻ mockup lỗi" trong
 - Bấm "Kết thúc phiên" thì màn hình trống.
 - Thư mục project trên máy không có file ảnh nào.
 
+**Trạng thái (2026-10-12):** đã xong, chạy bằng mock Claude + LanguageTool thật, kiểm tra tự động trên Edge chạy ẩn:
+- Tải 50 ảnh + 1 file `.zip` (5 ảnh, kèm `readme.txt` và `__MACOSX`): xong 55/55 trong khoảng 32s, không ảnh nào kẹt. Chỉ thẻ Lỗi/Nghi ngờ hiện ra, Không lỗi/Không có chữ chỉ hiện số. File rác trong zip bị bỏ qua.
+- "Thử lại tất cả" chạy lại ảnh thất bại. Tải lại trang hiện cảnh báo `beforeunload`. "Kết thúc phiên" làm màn hình trống.
+- Tắt LanguageTool: hiện banner "LanguageTool đang lỗi, kết quả chỉ từ Claude", badge chuyển "mất kết nối".
+- Không có file ảnh nào trong thư mục project; log server không chứa tên file hay nội dung chữ.
+
+**Bạn nên tự thử bằng tay** (công cụ tự động không giả lập được):
+- Kéo thả một **thư mục** vào vùng tải lên, và dùng nút "Chọn thư mục".
+- Bấm "Sao chép" ở "Chữ sau khi sửa" rồi dán thử.
+- Chạy lại toàn bộ với Claude thật khi có API key.
+
 ---
 
 ## Giai đoạn 5 — Từ điển + thống kê chi phí

@@ -63,7 +63,12 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
    - Nhóm **Nghi ngờ** (`warning`): thu gọn
    - Nhóm **Thất bại**: kèm nút "Thử lại", dùng lại `File` vẫn còn trong trình duyệt
    - `ok` và `no_text`: chỉ hiện số lượng
-5. Nút **"Kết thúc phiên"** xóa state và revoke toàn bộ object URL. Khi còn kết quả mà người dùng đóng hoặc tải lại tab, bật cảnh báo `beforeunload`.
+   - "Đã kiểm X/Y": X gồm cả ảnh đã xong và ảnh thất bại.
+   - Banner "LanguageTool đang lỗi, kết quả chỉ từ Claude" khi có ảnh trả về `ltStatus = "offline"`. Ở chế độ mock có thêm banner báo kết quả Claude là dữ liệu mẫu.
+   - Phiên đăng nhập hết hạn giữa chừng (API trả 401): ảnh đó vào nhóm Thất bại với hướng dẫn đăng nhập lại ở tab khác rồi bấm "Thử lại". **Không tự chuyển sang `/login`**, vì chuyển trang sẽ mất toàn bộ kết quả của phiên.
+   - File `.zip` và thư mục: chỉ lấy JPG/PNG/WebP. Bỏ qua file khác, file ẩn (tên bắt đầu bằng `.`) và thư mục `__MACOSX`. Sau khi thêm, báo số ảnh đã thêm và số file bị bỏ qua.
+   - Ảnh thu nhỏ có nền ô bàn cờ xám, để thiết kế nền trong suốt có chữ trắng vẫn nhìn thấy được.
+5. Nút **"Kết thúc phiên"** (có hộp xác nhận) xóa state, hủy các request đang chạy và revoke toàn bộ object URL. Rời trang bằng điều hướng trong app cũng kết thúc phiên như vậy. Khi còn kết quả mà người dùng đóng hoặc tải lại tab, bật cảnh báo `beforeunload`.
 
 ### Thẻ mockup lỗi
 
