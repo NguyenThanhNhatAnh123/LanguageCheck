@@ -52,7 +52,7 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
    1. **Gọi Claude** vision với prompt trong `docs/claude-analyze-prompt.md`, có từ điển team trong system prompt. Validate kết quả bằng zod. Định vị từng issue: tìm lần xuất hiện thứ `occurrence` (thiếu thì mặc định 1) của `original` trong `blocks[block_index].text`.
    2. **Gọi LanguageTool.** Gom các block theo `blocks[].language`. Với mỗi ngôn ngữ, nối text các block bằng `"\n"`, gửi `POST {LT_URL}/v2/check` (form-urlencoded: `text`, `language`), rồi map `offset/length` ngược về từng block. Block `unknown` không gửi LanguageTool, chỉ dùng kết quả Claude.
    3. **Lọc và quy đổi.** Bỏ các match chính tả có từ nằm trong từ điển (đúng ngôn ngữ, không phân biệt hoa thường). Quy đổi severity theo mục "Quy đổi severity LanguageTool", rồi áp các quy tắc ngôn ngữ ở dưới.
-   4. **Merge 2 nguồn**, tính `status` và "Chữ sau khi sửa".
+   4. **Merge 2 nguồn**, xử lý phương án sửa, áp quy tắc "chữ in hoa thiếu dấu" của fr-FR, rồi tính `status` và "Chữ sau khi sửa".
    5. **Trả JSON về client.** Cộng token đã dùng vào bảng thống kê ngày. Buffer ảnh bị bỏ đi.
 4. Client gom kết quả vào state và hiển thị:
    - Thanh tổng kết: `Đã kiểm X/Y — Lỗi A — Nghi ngờ B — Không lỗi C — Không có chữ D — Thất bại E`
@@ -147,8 +147,9 @@ Lần gọi đầu tiên cho mỗi ngôn ngữ sau khi LanguageTool khởi độ
 - **Nạp sẵn**: gửi 1 câu ngắn cố định cho mỗi ngôn ngữ (`en-US`, `de-DE`, `fr-FR`, `es-ES`).
   - Chạy nền khi app khởi động, **không chặn** app khởi động.
   - LanguageTool chưa sẵn sàng thì thử lại với backoff, đến khi nạp xong.
-  - Chạy lại mỗi khi `/api/lt-health` thấy LanguageTool chuyển từ offline sang online. Server nhớ trạng thái lần kiểm tra trước trong bộ nhớ.
-  - Đang có một lượt nạp sẵn chạy thì không mở thêm lượt mới.
+  - Chạy lại mỗi khi `/api/lt-health` thấy LanguageTool chuyển sang online từ `offline` hoặc `unknown`.
+  - Trạng thái lần kiểm tra trước lưu trên `globalThis`, để không bị reset khi hot reload ở dev. Giá trị ban đầu là `"unknown"`, nên lần health check thành công đầu tiên cũng kích hoạt nạp sẵn.
+  - Đang có một lượt nạp sẵn chạy thì không mở thêm lượt mới. Cờ "đang nạp sẵn" cũng lưu trên `globalThis`.
 
 ## Dữ liệu lưu lâu dài (SQLite, `DATABASE_PATH`)
 
@@ -167,7 +168,8 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
   - Vẫn phải bắt: sai đuôi từ, sai giống hoặc cách, mất umlaut (`FUR` → `FÜR`).
 - **fr-FR**
   - Thiếu dấu trên chữ in hoa (`ETE` thay vì `ÉTÉ`) → `info`.
-    - Với LanguageTool (thường báo `misspelling`): nếu `original` in hoa toàn bộ và phương án đầu tiên chỉ khác `original` ở dấu (bỏ dấu và bỏ phân biệt hoa thường thì giống hệt), hạ xuống `info`.
+    - Cách nhận biết (LanguageTool thường báo những chỗ này là `misspelling`): `original` in hoa toàn bộ, và **bất kỳ** phương án nào trong danh sách đã xử lý (tối đa 3, gồm của cả LanguageTool lẫn Claude) chỉ khác `original` ở dấu. "Chỉ khác ở dấu" nghĩa là bỏ dấu và bỏ phân biệt hoa thường thì giống hệt. Ví dụ phương án `ETC, ÉTÉ` vẫn hạ xuống `info` nhờ `ÉTÉ`.
+    - Áp lên issue **sau khi merge** và xử lý phương án sửa, trước khi tính `status`.
     - Quy tắc này **chỉ áp cho fr-FR**. Ở es-ES (`TU` → `TÚ`) và de-DE (`FUR` → `FÜR`), thiếu dấu vẫn là `error`.
   - Thiếu dấu cách trước `! ? : ;` → `info`.
   - Vẫn phải bắt: sai hợp giống/số, sai dấu trên chữ thường.
