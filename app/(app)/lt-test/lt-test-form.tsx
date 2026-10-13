@@ -17,7 +17,7 @@ const languageItems = LANGUAGES.map((code) => ({ value: code, label: `${LANGUAGE
 
 export function LtTestForm() {
   const [text, setText] = useState("This are an test.");
-  const [language, setLanguage] = useState<Language>("en-US");
+  const [language, setLanguage] = useState<Language>("de-DE");
   const [result, setResult] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 

@@ -160,8 +160,5 @@ export function applyLtLanguageRules(match: LtBlockMatch, block: ClaudeBlock, la
       }
       return { action: "keep", severity };
     }
-
-    case "en-US":
-      return { action: "keep", severity };
   }
 }

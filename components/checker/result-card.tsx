@@ -1,7 +1,8 @@
+import { EyeIcon } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { languageLabel } from "@/lib/analysis/labels";
 import type { AnalysisResult } from "@/lib/analysis/types";
-import { isLanguage, type Language } from "@/lib/languages";
+import { isLanguage, isUncheckedLanguage, UNCHECKED_LANGUAGE_LABELS, type Language } from "@/lib/languages";
 import { CorrectedText } from "./corrected-text";
 import { HighlightedText } from "./highlighted-text";
 import { IssueItem } from "./issue-item";
@@ -34,6 +35,12 @@ export function ResultCard({ name, objectUrl, result }: { name: string; objectUr
           return (
             <section key={block.index} className="space-y-3">
               <HighlightedText text={block.text} issues={issues} />
+              {isUncheckedLanguage(block.language) && (
+                <p className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400" data-testid="unchecked-language">
+                  <EyeIcon className="size-4 shrink-0" aria-hidden />
+                  Chữ {UNCHECKED_LANGUAGE_LABELS[block.language].toLocaleLowerCase("vi")}: tool không kiểm, cần xem tay.
+                </p>
+              )}
               {issues.length > 0 && (
                 <ul className="divide-y border-t pt-3">
                   {issues.map((issue) => (

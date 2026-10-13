@@ -81,4 +81,6 @@ export interface AnalysisResult {
   issues: Issue[];
   notesVi: string | null;
   ltStatus: LtStatus;
+  /** Blocks in a language the tool does not check (English): shown with "check by hand". */
+  uncheckedBlocks: number[];
 }

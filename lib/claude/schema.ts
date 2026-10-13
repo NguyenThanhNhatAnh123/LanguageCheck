@@ -1,10 +1,11 @@
 import { z } from "zod";
-import { LANGUAGES } from "@/lib/languages";
+import { LANGUAGES, UNCHECKED_LANGUAGES } from "@/lib/languages";
 
 // Output schema from docs/claude-analyze-prompt.md. Optional fields are `nullable` (and
 // required) rather than omitted, which structured outputs support on every model.
 
-export const BLOCK_LANGUAGES = [...LANGUAGES, "unknown"] as const;
+/** Checked languages, languages Claude recognizes but the tool does not check (en-US), unknown. */
+export const BLOCK_LANGUAGES = [...LANGUAGES, ...UNCHECKED_LANGUAGES, "unknown"] as const;
 export type BlockLanguage = (typeof BLOCK_LANGUAGES)[number];
 
 export const ISSUE_TYPES = [
@@ -49,7 +50,7 @@ const claudeIssueSchema = z.object({
 /** Shape sent to the API as the structured-output JSON schema. */
 export const claudeAnalysisSchema = z.object({
   has_text: z.boolean(),
-  language: z.enum([...LANGUAGES, "mixed", "unknown"]),
+  language: z.enum([...LANGUAGES, ...UNCHECKED_LANGUAGES, "mixed", "unknown"]),
   blocks: z.array(claudeBlockSchema),
   issues: z.array(claudeIssueSchema),
   notes_vi: z.string().nullable(),

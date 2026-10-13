@@ -27,18 +27,19 @@ const raw = (offset: number, length: number, issueType = "misspelling", replacem
 });
 
 describe("groupBlocksByLanguage", () => {
-  it("joins blocks of one language with \\n and skips unknown", () => {
+  it("joins blocks of one language with \\n and skips unknown and English", () => {
     const groups = groupBlocksByLanguage([
       block(0, "NUR FUR DICH", "de-DE"),
-      block(1, "LOVE", "en-US"),
+      block(1, "AMOUR", "fr-FR"),
       block(2, "HANDGEMACHT", "de-DE"),
       block(3, "XYZ", "unknown"),
+      block(4, "YOUR THE BEST", "en-US"),
     ]);
     expect(groups.map((g) => [g.language, g.text])).toEqual([
-      ["en-US", "LOVE"],
       ["de-DE", "NUR FUR DICH\nHANDGEMACHT"],
+      ["fr-FR", "AMOUR"],
     ]);
-    expect(groups[1].segments).toEqual([
+    expect(groups[0].segments).toEqual([
       { blockIndex: 0, start: 0, end: 12 },
       { blockIndex: 2, start: 13, end: 24 },
     ]);
@@ -140,7 +141,7 @@ describe("applyLtLanguageRules", () => {
   });
 
   it("drops matches on Claude's [?] placeholder", () => {
-    const b = block(0, "BORN TO R[?]DE", "en-US");
-    expect(applyLtLanguageRules(match(8, 14), b, "en-US")).toEqual({ action: "drop" });
+    const b = block(0, "FAHR ZUM R[?]DEN", "de-DE");
+    expect(applyLtLanguageRules(match(9, 16), b, "de-DE")).toEqual({ action: "drop" });
   });
 });

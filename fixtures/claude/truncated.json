@@ -6,15 +6,15 @@
   "responses": [
     {
       "stop_reason": "max_tokens",
-      "raw_text": "{\"has_text\": true, \"language\": \"en-US\", \"blocks\": [{\"index\": 0, \"text\": \"LIFE IS BETTER AT THE"
+      "raw_text": "{\"has_text\": true, \"language\": \"de-DE\", \"blocks\": [{\"index\": 0, \"text\": \"DAS LEBEN IST SCH"
     },
     {
       "stop_reason": "end_turn",
       "output": {
         "has_text": true,
-        "language": "en-US",
+        "language": "de-DE",
         "blocks": [
-          { "index": 0, "text": "LIFE IS BETTER\nAT THE LAKE", "role": "headline", "language": "en-US", "legibility": "clear" }
+          { "index": 0, "text": "DAS LEBEN IST SCHÖNER\nAM SEE", "role": "headline", "language": "de-DE", "legibility": "clear" }
         ],
         "issues": [],
         "notes_vi": null

@@ -1,6 +1,6 @@
 {
-  "description": "en-US: YOUR instead of YOU'RE in an ALL CAPS headline (real error).",
-  "match": ["en-error"],
+  "description": "en-US: English text, which the tool does not check. Claude's issue is dropped and the image goes to 'Nghi ngờ' with a 'check by hand' note.",
+  "match": ["english", "en-error"],
   "pick_randomly": true,
   "usage": { "input_tokens": 1850, "output_tokens": 420 },
   "responses": [
@@ -21,11 +21,8 @@
             "type": "grammar",
             "severity": "error",
             "intentional_possible": false,
-            "explanation_vi": "\"Your\" nghĩa là \"của bạn\". Ở đây cần \"you're\" (= you are, \"bạn là\").",
-            "suggestions": [
-              { "text": "YOU'RE", "note_vi": "Viết tắt của YOU ARE" },
-              { "text": "YOU ARE", "note_vi": null }
-            ]
+            "explanation_vi": "\"Your\" nghĩa là \"của bạn\". Ở đây cần \"you're\".",
+            "suggestions": [{ "text": "YOU'RE", "note_vi": null }]
           }
         ],
         "notes_vi": null

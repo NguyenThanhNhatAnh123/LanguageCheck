@@ -1,5 +1,5 @@
 {
-  "description": "en-US: tribal name HAIDA flagged as a possible proper noun (warning, intentional); for dictionary tests.",
+  "description": "de-DE: tribal name HAIDA flagged as a possible proper noun (warning, intentional); for dictionary tests.",
   "match": ["proper-noun", "haida"],
   "pick_randomly": true,
   "usage": { "input_tokens": 1840, "output_tokens": 410 },
@@ -8,10 +8,10 @@
       "stop_reason": "end_turn",
       "output": {
         "has_text": true,
-        "language": "en-US",
+        "language": "de-DE",
         "blocks": [
-          { "index": 0, "text": "HAIDA PRIDE", "role": "headline", "language": "en-US", "legibility": "clear" },
-          { "index": 1, "text": "NATIVE AMERICAN HERITAGE", "role": "small", "language": "en-US", "legibility": "clear" }
+          { "index": 0, "text": "STOLZ AUF HAIDA", "role": "headline", "language": "de-DE", "legibility": "clear" },
+          { "index": 1, "text": "INDIGENES ERBE", "role": "small", "language": "de-DE", "legibility": "clear" }
         ],
         "issues": [
           {

@@ -1,5 +1,5 @@
 {
-  "description": "en-US: two-word proper noun HAIDA NATION flagged as spelling (warning); for 'Thêm từng từ…'.",
+  "description": "de-DE: two-word proper noun HAIDA NATION flagged as spelling (warning); for 'Thêm từng từ…'.",
   "match": ["tribe-phrase"],
   "pick_randomly": false,
   "usage": { "input_tokens": 1840, "output_tokens": 400 },
@@ -8,9 +8,9 @@
       "stop_reason": "end_turn",
       "output": {
         "has_text": true,
-        "language": "en-US",
+        "language": "de-DE",
         "blocks": [
-          { "index": 0, "text": "HAIDA NATION PRIDE", "role": "headline", "language": "en-US", "legibility": "clear" }
+          { "index": 0, "text": "HAIDA NATION STOLZ", "role": "headline", "language": "de-DE", "legibility": "clear" }
         ],
         "issues": [
           {

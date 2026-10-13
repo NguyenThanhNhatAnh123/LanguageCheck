@@ -20,7 +20,6 @@ const MAX_BACKOFF_MS = 60_000;
 // Each sentence has a deliberate typo so the speller's suggestion data is loaded too;
 // without it the first real misspelling still pays a multi-second load.
 const WARMUP_TEXT: Record<Language, string> = {
-  "en-US": "This is a short tset.",
   "de-DE": "Das ist ein kurzer Tset.",
   "fr-FR": "Ceci est un court tset.",
   "es-ES": "Esto es una prueba crota.",

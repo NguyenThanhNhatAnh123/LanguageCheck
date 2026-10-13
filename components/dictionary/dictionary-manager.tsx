@@ -28,7 +28,7 @@ export function DictionaryManager() {
 
   const [filter, setFilter] = useState<Language | "all">("all");
   const [query, setQuery] = useState("");
-  const [language, setLanguage] = useState<Language>("en-US");
+  const [language, setLanguage] = useState<Language>("de-DE");
   const [word, setWord] = useState("");
   const [note, setNote] = useState("");
   const [adding, setAdding] = useState(false);
@@ -253,7 +253,7 @@ export function DictionaryManager() {
         </a>
         <span>
           File CSV có dòng đầu <code className="font-mono text-xs">language,word,note</code>, ví dụ{" "}
-          <code className="font-mono text-xs">en-US,Haida,tên bộ tộc</code>. Từ đã có sẵn sẽ được bỏ qua.
+          <code className="font-mono text-xs">de-DE,Haida,tên bộ tộc</code>. Từ đã có sẵn sẽ được bỏ qua.
         </span>
         <input ref={importInput} type="file" accept=".csv,text/csv" className="hidden" onChange={onImport} />
       </div>

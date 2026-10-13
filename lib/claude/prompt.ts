@@ -1,7 +1,7 @@
 import { LANGUAGES, type Language } from "@/lib/languages";
 
 // Must stay identical to the block in docs/claude-analyze-prompt.md (checked by prompt.test.ts).
-export const SYSTEM_PROMPT_TEMPLATE = `You are a proofreader for print-on-demand apparel designs (t-shirts, hoodies, posters) sold to customers in Germany, France, Spain and the US. Most designs are in German, French or Spanish; English is less common.
+export const SYSTEM_PROMPT_TEMPLATE = `You are a proofreader for print-on-demand apparel designs (t-shirts, hoodies, posters) sold to customers in Germany, France and Spain. This tool checks German, French and Spanish text only.
 
 You receive ONE design image. Do two things, in this order:
 
@@ -12,7 +12,8 @@ You receive ONE design image. Do two things, in this order:
    - Ignore text that is clearly part of a mockup background (tags, labels on the model's other clothing).
 
 2. PROOFREAD the transcribed text.
-   - Detect the language of each block: en-US, de-DE, fr-FR, es-ES (or "unknown").
+   - Detect the language of each block: de-DE, fr-FR, es-ES, en-US (or "unknown").
+   - English (en-US) is NOT checked by this tool: transcribe it and set the block language to en-US, but report no issues for English blocks.
    - Report real errors: spelling, grammar, missing/wrong accents, punctuation, wrong word.
    - TOP PRIORITY: check every block for agreement errors. A spell checker cannot see them because each word is spelled correctly.
      * fr-FR and es-ES: gender/number agreement between nouns, articles and adjectives
@@ -27,8 +28,6 @@ You receive ONE design image. Do two things, in this order:
      * es-ES: a missing Ñ is always "error", never intentional (ANO → AÑO, ANOS → AÑOS, CUMPLEANOS → CUMPLEAÑOS).
        ANO is a real word, so a spell checker misses it: you must catch it from context.
        Missing ¿ ¡ → "warning". Missing accent that changes meaning (TU/TÚ, SI/SÍ, EL/ÉL, MAS/MÁS) → "error".
-     * en-US: "ain't", "gonna", "rollin'" are style (set intentional_possible=true, severity "info").
-       Still catch your/you're, its/it's, there/their/they're, "ya'll" → "y'all", lose/loose.
    - Short slogans usually have no commas or final punctuation: do not report a missing comma, period or exclamation mark.
      (The Spanish ¿ ¡ rule above still applies.)
    - Words in the TEAM DICTIONARY below are always correct for that language. Never flag them.
@@ -57,7 +56,7 @@ export interface DictionaryPromptEntry {
   word: string;
 }
 
-/** "en-US: Haida, Lakota" per line, languages in a fixed order and words sorted, so the
+/** "de-DE: Haida, Lakota" per line, languages in a fixed order and words sorted, so the
  * system prompt (the cached prefix) only changes when the dictionary itself changes. */
 export function formatDictionaryForPrompt(entries: readonly DictionaryPromptEntry[]): string {
   const lines = LANGUAGES.flatMap((language) => {

@@ -1,5 +1,5 @@
 import type { Severity } from "@/lib/claude/schema";
-import { isLanguage, LANGUAGE_LABELS } from "@/lib/languages";
+import { isLanguage, isUncheckedLanguage, LANGUAGE_LABELS, UNCHECKED_LANGUAGE_LABELS } from "@/lib/languages";
 import type { AnalysisResult, AnalysisStatus, IssueSource } from "./types";
 
 // Vietnamese labels for the UI.
@@ -24,6 +24,7 @@ export function sourceLabel(sources: readonly IssueSource[]): string {
 
 export function languageLabel(language: AnalysisResult["language"] | string): string {
   if (isLanguage(language)) return LANGUAGE_LABELS[language];
+  if (isUncheckedLanguage(language)) return `${UNCHECKED_LANGUAGE_LABELS[language]} (không kiểm)`;
   if (language === "mixed") return "Nhiều ngôn ngữ";
   return "Không rõ ngôn ngữ";
 }

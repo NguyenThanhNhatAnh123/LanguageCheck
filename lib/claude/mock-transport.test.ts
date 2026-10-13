@@ -7,11 +7,11 @@ const ids = fixtures.map((fixture) => fixture.id);
 describe("loadFixtures", () => {
   it("covers every case the mock is meant to exercise", () => {
     for (const id of [
-      "en-error",
+      "english",
       "de-error",
       "fr-error",
       "es-error",
-      "gonna",
+      "slang",
       "fr-ete-caps",
       "ocr-uncertain",
       "no-text",
@@ -25,7 +25,7 @@ describe("loadFixtures", () => {
 
 describe("selectFixture", () => {
   it("picks by keyword in the file name, ignoring case and separators", () => {
-    expect(selectFixture(fixtures, "Shirt_GONNA_02.jpg").id).toBe("gonna");
+    expect(selectFixture(fixtures, "Shirt_SLANG_02.jpg").id).toBe("slang");
     expect(selectFixture(fixtures, "batch 7 de-error.png").id).toBe("de-error");
     expect(selectFixture(fixtures, "tattoo-OCR-test.jpg").id).toBe("ocr-uncertain");
     expect(selectFixture(fixtures, "my no_text design.png").id).toBe("no-text");
@@ -65,12 +65,12 @@ describe("createMockTransport", () => {
     const transport = createMockTransport({ latencyMs: [0, 0] });
     const response = await transport.send({
       image: { data: Buffer.from(""), mediaType: "image/jpeg" },
-      fileName: "gonna.jpg",
+      fileName: "slang.jpg",
       systemPrompt: "",
       maxTokens: 3000,
       attempt: 0,
     });
     expect(response.model).toBe("mock");
-    expect(response.text).toContain("GONNA");
+    expect(response.text).toContain("HAB DICH");
   });
 });

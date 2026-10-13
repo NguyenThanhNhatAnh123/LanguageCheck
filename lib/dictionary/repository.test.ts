@@ -31,7 +31,7 @@ describe("addDictionaryWord", () => {
   });
 
   it("allows the same word in another language", () => {
-    expect(addDictionaryWord({ language: "en-US", word: "Haida" }, db).created).toBe(true);
+    expect(addDictionaryWord({ language: "es-ES", word: "Haida" }, db).created).toBe(true);
     expect(addDictionaryWord({ language: "de-DE", word: "Haida" }, db).created).toBe(true);
     expect(listDictionaryEntries(db)).toHaveLength(2);
   });
@@ -51,7 +51,7 @@ describe("addDictionaryWord", () => {
 
 describe("deleteDictionaryWord", () => {
   it("deletes by id and reports whether something was deleted", () => {
-    const { entry } = addDictionaryWord({ language: "en-US", word: "Haida" }, db);
+    const { entry } = addDictionaryWord({ language: "es-ES", word: "Haida" }, db);
     expect(deleteDictionaryWord(entry.id, db)).toBe(true);
     expect(deleteDictionaryWord(entry.id, db)).toBe(false);
     expect(listDictionaryEntries(db)).toEqual([]);
@@ -64,8 +64,8 @@ describe("importDictionaryWords", () => {
     const summary = importDictionaryWords(
       [
         { language: "de-DE", word: "STRASSE" },
-        { language: "en-US", word: "Haida", note: "tribe" },
-        { language: "en-US", word: "HAIDA" },
+        { language: "es-ES", word: "Haida", note: "tribe" },
+        { language: "es-ES", word: "HAIDA" },
         { language: "fr-FR", word: "Été" },
       ],
       db,
@@ -73,7 +73,7 @@ describe("importDictionaryWords", () => {
     expect(summary).toEqual({ created: 2, existing: 2 });
     expect(listDictionaryEntries(db).map((entry) => `${entry.language}:${entry.word}`)).toEqual([
       "de-DE:Straße",
-      "en-US:Haida",
+      "es-ES:Haida",
       "fr-FR:Été",
     ]);
   });
@@ -84,6 +84,6 @@ describe("loadDictionaryMatcher", () => {
     addDictionaryWord({ language: "de-DE", word: "straße" }, db);
     const matcher = loadDictionaryMatcher(db);
     expect(matcher.has("STRASSE", "de-DE")).toBe(true);
-    expect(matcher.has("STRASSE", "en-US")).toBe(false);
+    expect(matcher.has("STRASSE", "es-ES")).toBe(false);
   });
 });

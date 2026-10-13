@@ -16,10 +16,10 @@ describe("formatDictionaryForPrompt", () => {
   it("writes one line per language in a fixed order, words sorted", () => {
     const text = formatDictionaryForPrompt([
       { language: "de-DE", word: "Straße" },
-      { language: "en-US", word: "Lakota" },
-      { language: "en-US", word: "Haida" },
+      { language: "es-ES", word: "Lakota" },
+      { language: "es-ES", word: "Haida" },
     ]);
-    expect(text).toBe("en-US: Haida, Lakota\nde-DE: Straße");
+    expect(text).toBe("de-DE: Straße\nes-ES: Haida, Lakota");
   });
 
   it("writes (empty) for an empty dictionary", () => {
@@ -29,12 +29,12 @@ describe("formatDictionaryForPrompt", () => {
 
 describe("buildSystemPrompt", () => {
   it("inserts the dictionary at the placeholder", () => {
-    const prompt = buildSystemPrompt([{ language: "en-US", word: "Haida" }]);
-    expect(prompt.endsWith("TEAM DICTIONARY:\nen-US: Haida")).toBe(true);
+    const prompt = buildSystemPrompt([{ language: "de-DE", word: "Haida" }]);
+    expect(prompt.endsWith("TEAM DICTIONARY:\nde-DE: Haida")).toBe(true);
     expect(prompt).not.toContain("{{DICTIONARY}}");
   });
 
   it("keeps a $ in a dictionary word literally", () => {
-    expect(buildSystemPrompt([{ language: "en-US", word: "Ca$h$&" }])).toContain("en-US: Ca$h$&");
+    expect(buildSystemPrompt([{ language: "de-DE", word: "Ca$h$&" }])).toContain("de-DE: Ca$h$&");
   });
 });

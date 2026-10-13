@@ -129,9 +129,9 @@ describe("analyzeWithClaude with the mock fixtures", () => {
     expect(await analyze("invalid-schema.jpg")).toMatchObject({ ok: false, reason: "invalid_output", attempts: 2 });
   });
 
-  it("reads the gonna fixture", async () => {
-    const outcome = await analyze("gonna.jpg");
+  it("reads the slang fixture", async () => {
+    const outcome = await analyze("slang.jpg");
     if (!outcome.ok) throw new Error("expected success");
-    expect(outcome.analysis.issues[0]).toMatchObject({ original: "GONNA", severity: "info", intentional_possible: true });
+    expect(outcome.analysis.issues[0]).toMatchObject({ original: "HAB", severity: "info", intentional_possible: true });
   });
 });

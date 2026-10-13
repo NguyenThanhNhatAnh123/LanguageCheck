@@ -44,13 +44,13 @@ describe("findOccurrence / locating Claude issues", () => {
   });
 
   it("uses occurrence (null = 1) to place the issue", () => {
-    const result = run(analysis("en-US", ["THEIR CAR AND THEIR HOUSE"], [{ original: "THEIR", occurrence: 2, suggestions: [{ text: "THERE", note_vi: null }] }]));
-    expect(result.issues[0]).toMatchObject({ start: 14, end: 19 });
+    const result = run(analysis("de-DE", ["DIE KATZE UND DIE MAUS"], [{ original: "DIE", occurrence: 2, suggestions: [{ text: "DER", note_vi: null }] }]));
+    expect(result.issues[0]).toMatchObject({ start: 14, end: 17 });
   });
 
   it("downgrades an issue whose original is not in the block to warning", () => {
     const { result, claudeIssuesNotFound } = analyzeTexts(
-      { claude: analysis("en-US", ["HELLO"], [{ original: "WORLD" }]), ltMatches: [], ltStatus: "online" },
+      { claude: analysis("de-DE", ["HALLO"], [{ original: "WELT" }]), ltMatches: [], ltStatus: "online" },
       noDictionary,
     );
     expect(claudeIssuesNotFound).toBe(1);
@@ -62,22 +62,22 @@ describe("findOccurrence / locating Claude issues", () => {
 describe("merge", () => {
   it("merges overlapping Claude and LanguageTool issues into one with both sources", () => {
     const result = run(
-      analysis("en-US", ["YOUR THE BEST"], [{ original: "YOUR", type: "grammar", suggestions: [{ text: "YOU'RE", note_vi: null }] }]),
-      [lt(0, 0, 4, "misspelling", ["YOU'RE"])],
+      analysis("de-DE", ["ICH LIEBE MEINE HUND"], [{ original: "MEINE", type: "grammar", suggestions: [{ text: "MEINEN", note_vi: null }] }]),
+      [lt(0, 10, 15, "grammar", ["MEINEN"])],
     );
     expect(result.issues).toHaveLength(1);
     expect(result.issues[0]).toMatchObject({ sources: ["claude", "lt"], severity: "error", explanationVi: "giải thích", ltMessages: ["LT message"] });
     expect(result.status).toBe("error");
   });
 
-  it("GONNA: Claude intentional wins over LanguageTool misspelling", () => {
+  it("HAB DICH LIEB: Claude intentional wins over LanguageTool misspelling", () => {
     const result = run(
-      analysis("en-US", ["WE'RE GONNA ROCK"], [{ original: "GONNA", type: "word_choice", severity: "info", intentional_possible: true, suggestions: [{ text: "GOING TO", note_vi: null }] }]),
-      [lt(0, 6, 11, "misspelling", ["GONE"])],
+      analysis("de-DE", ["HAB DICH LIEB"], [{ original: "HAB", type: "word_choice", severity: "info", intentional_possible: true, suggestions: [{ text: "HABE", note_vi: null }] }]),
+      [lt(0, 0, 3, "misspelling", ["HAT"])],
     );
     expect(result.issues[0]).toMatchObject({ sources: ["claude", "lt"], severity: "info", intentionalPossible: true });
     expect(result.status).toBe("ok");
-    expect(result.blocks[0].correctedText).toBe("WE'RE GONNA ROCK");
+    expect(result.blocks[0].correctedText).toBe("HAB DICH LIEB");
   });
 
   it("takes the higher severity when Claude is not intentional", () => {
@@ -100,18 +100,18 @@ describe("merge", () => {
   });
 
   it("keeps LanguageTool-only issues with a Vietnamese label and at most warning status", () => {
-    const result = run(analysis("en-US", ["THE THE BEST"], []), [lt(0, 0, 7, "duplication", ["THE"])]);
+    const result = run(analysis("de-DE", ["DIE DIE BESTE MAMA"], []), [lt(0, 0, 7, "duplication", ["DIE"])]);
     expect(result.issues[0]).toMatchObject({ sources: ["lt"], severity: "error", ltLabelVi: "Lặp từ", explanationVi: null });
     expect(result.status).toBe("warning");
   });
 });
 
 describe("dictionary filter", () => {
-  const dictionary = createDictionaryMatcher([{ language: "en-US", wordKey: toWordKey("Haida", "en-US") }]);
+  const dictionary = createDictionaryMatcher([{ language: "de-DE", wordKey: toWordKey("Haida", "de-DE") }]);
 
   it("removes issues on dictionary words from both sources", () => {
-    const claude = analysis("en-US", ["HAIDA PRIDE"], [{ original: "HAIDA", severity: "warning", intentional_possible: true }]);
-    const matches = [lt(0, 0, 5, "misspelling", ["HAIFA"])];
+    const claude = analysis("de-DE", ["STOLZ AUF HAIDA"], [{ original: "HAIDA", severity: "warning", intentional_possible: true }]);
+    const matches = [lt(0, 10, 15, "misspelling", ["HAIFA"])];
     expect(run(claude, matches).status).toBe("warning");
     const filtered = run(claude, matches, dictionary);
     expect(filtered.issues).toEqual([]);
@@ -119,20 +119,20 @@ describe("dictionary filter", () => {
   });
 
   it("removes a multi-word spelling issue once every word is in the dictionary", () => {
-    const claude = analysis("en-US", ["HAIDA NATION PRIDE"], [{ original: "HAIDA NATION", type: "spelling", severity: "warning" }]);
-    const one = createDictionaryMatcher([{ language: "en-US", wordKey: "haida" }]);
+    const claude = analysis("de-DE", ["HAIDA NATION STOLZ"], [{ original: "HAIDA NATION", type: "spelling", severity: "warning" }]);
+    const one = createDictionaryMatcher([{ language: "de-DE", wordKey: "haida" }]);
     const both = createDictionaryMatcher([
-      { language: "en-US", wordKey: "haida" },
-      { language: "en-US", wordKey: "nation" },
+      { language: "de-DE", wordKey: "haida" },
+      { language: "de-DE", wordKey: "nation" },
     ]);
     expect(run(claude, [], one).issues).toHaveLength(1);
     expect(run(claude, [], both).issues).toEqual([]);
   });
 
   it("never removes a grammar issue on a dictionary word", () => {
-    const claude = analysis("en-US", ["YOUR THE BEST"], [{ original: "YOUR", type: "grammar" }]);
-    const dictionary = createDictionaryMatcher([{ language: "en-US", wordKey: "your" }]);
-    expect(run(claude, [lt(0, 0, 4, "grammar", ["YOU'RE"])], dictionary).issues).toHaveLength(1);
+    const claude = analysis("de-DE", ["ICH LIEBE MEINE HUND"], [{ original: "MEINE", type: "grammar" }]);
+    const dictionary = createDictionaryMatcher([{ language: "de-DE", wordKey: "meine" }]);
+    expect(run(claude, [lt(0, 10, 15, "grammar", ["MEINEN"])], dictionary).issues).toHaveLength(1);
   });
 
   it("removes LanguageTool misspellings but keeps its grammar matches", () => {
@@ -152,7 +152,7 @@ describe("dictionary filter", () => {
   });
 
   it("only applies to the dictionary's language", () => {
-    const claude = analysis("de-DE", ["HAIDA"], [{ original: "HAIDA" }]);
+    const claude = analysis("fr-FR", ["HAIDA"], [{ original: "HAIDA" }]);
     expect(run(claude, [], dictionary).issues).toHaveLength(1);
   });
 });
@@ -318,8 +318,8 @@ describe("spelling errors LanguageTool accepted (Claude only)", () => {
 
   it("stays Lỗi when LanguageTool also flags the word", () => {
     const result = run(
-      analysis("en-US", ["BEST FREIND EVER"], [{ original: "FREIND", type: "spelling", suggestions: [{ text: "FRIEND", note_vi: null }] }]),
-      [lt(0, 5, 11, "misspelling", ["FRIEND"])],
+      analysis("de-DE", ["DIE BESTE FREUNDIM"], [{ original: "FREUNDIM", type: "spelling", suggestions: [{ text: "FREUNDIN", note_vi: null }] }]),
+      [lt(0, 10, 18, "misspelling", ["FREUNDIN"])],
     );
     expect(result.status).toBe("error");
   });
@@ -400,10 +400,45 @@ describe("correctedText", () => {
 
   it("keeps an ALL CAPS block ALL CAPS", () => {
     const result = run(
-      analysis("en-US", ["YOUR THE BEST"], [{ original: "YOUR", type: "grammar", suggestions: [{ text: "you're", note_vi: null }] }]),
-      [lt(0, 0, 4, "misspelling", ["You're"])],
+      analysis("de-DE", ["ICH LIEBE MEINE HUND"], [{ original: "MEINE", type: "grammar", suggestions: [{ text: "meinen", note_vi: null }] }]),
+      [lt(0, 10, 15, "grammar", ["Meinen"])],
     );
-    expect(result.blocks[0].correctedText).toBe("YOU'RE THE BEST");
+    expect(result.blocks[0].correctedText).toBe("ICH LIEBE MEINEN HUND");
+  });
+});
+
+describe("English (not checked)", () => {
+  const english = (issues: Parameters<typeof analysis>[2] = []) => {
+    const claude = analysis("de-DE", ["YOUR THE BEST"], issues);
+    return { ...claude, language: "en-US" as const, blocks: [{ ...claude.blocks[0], language: "en-US" as const }] };
+  };
+
+  it("drops Claude's issues on English blocks and makes the image Nghi ngờ", () => {
+    const result = run(english([{ original: "YOUR", type: "grammar", suggestions: [{ text: "YOU'RE", note_vi: null }] }]));
+    expect(result.issues).toEqual([]);
+    expect(result.uncheckedBlocks).toEqual([0]);
+    expect(result.status).toBe("warning");
+    expect(result.blocks[0].correctedText).toBe("YOUR THE BEST");
+  });
+
+  it("an English-only image without issues is still Nghi ngờ, never Không lỗi", () => {
+    expect(run(english()).status).toBe("warning");
+  });
+
+  it("German errors next to English text still make the image Lỗi", () => {
+    const claude = analysis("de-DE", ["NUR FUR DICH", "BEST DAD EVER"], [{ original: "FUR", type: "accent", suggestions: [{ text: "FÜR", note_vi: null }] }]);
+    claude.blocks[1] = { ...claude.blocks[1], language: "en-US" };
+    const result = run(claude, [lt(0, 4, 7, "misspelling", ["FU"])]);
+    expect(result.status).toBe("error");
+    expect(result.uncheckedBlocks).toEqual([1]);
+  });
+
+  it("does not count empty English blocks", () => {
+    const claude = analysis("de-DE", ["DIE BESTE MAMA", " "], []);
+    claude.blocks[1] = { ...claude.blocks[1], language: "en-US" };
+    const result = run(claude);
+    expect(result.uncheckedBlocks).toEqual([]);
+    expect(result.status).toBe("ok");
   });
 });
 
@@ -414,7 +449,7 @@ describe("analyzeTexts", () => {
   });
 
   it("passes LanguageTool status through", () => {
-    const { result } = analyzeTexts({ claude: analysis("en-US", ["HI"], []), ltMatches: [], ltStatus: "offline" }, noDictionary);
+    const { result } = analyzeTexts({ claude: analysis("de-DE", ["HALLO"], []), ltMatches: [], ltStatus: "offline" }, noDictionary);
     expect(result.ltStatus).toBe("offline");
   });
 });
@@ -448,10 +483,10 @@ describe("trimSuggestionContext", () => {
 describe("analyzeTexts with over-wide suggestions", () => {
   it("applies the trimmed suggestion to the corrected text", () => {
     const result = run(
-      analysis("en-US", ["YOUR THE BEST\nDAD EVER"], [{ original: "YOUR", type: "grammar", suggestions: [{ text: "YOU'RE THE BEST", note_vi: null }] }]),
+      analysis("fr-FR", ["LES PETITES CHOSE\nDE LA VIE"], [{ original: "CHOSE", type: "grammar", suggestions: [{ text: "LES PETITES CHOSES", note_vi: null }] }]),
     );
-    expect(result.issues[0].suggestions.map((s) => s.text)).toEqual(["YOU'RE"]);
-    expect(result.blocks[0].correctedText).toBe("YOU'RE THE BEST\nDAD EVER");
+    expect(result.issues[0].suggestions.map((s) => s.text)).toEqual(["CHOSES"]);
+    expect(result.blocks[0].correctedText).toBe("LES PETITES CHOSES\nDE LA VIE");
   });
 
   it("drops a suggestion that only repeats the context (nothing left to change)", () => {

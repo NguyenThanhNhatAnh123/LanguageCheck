@@ -1,7 +1,7 @@
 import type { ClaudeAnalysis, ClaudeBlock, Severity } from "@/lib/claude/schema";
 import type { DictionaryMatcher } from "@/lib/dictionary/matcher";
 import { splitWords } from "@/lib/dictionary/split-words";
-import { isLanguage, type Language } from "@/lib/languages";
+import { isLanguage, isUncheckedLanguage, type Language } from "@/lib/languages";
 import { applyLtLanguageRules, ltLabelVi } from "./languagetool-rules";
 import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, differsOnlyBySpecialCharacters, isAllCaps, isMissingEnye, isUmlautSpelledOut } from "./text-case";
 import type {
@@ -26,6 +26,8 @@ const SEVERITY_RANK: Record<Severity, number> = { info: 0, warning: 1, error: 2 
 /** Language used for a block's rules and case conversion. */
 function blockLanguage(block: ClaudeBlock, analysis: ClaudeAnalysis): Language | undefined {
   if (isLanguage(block.language)) return block.language;
+  // English and other unchecked languages: not checked at all, so no fallback either.
+  if (isUncheckedLanguage(block.language)) return undefined;
   return isLanguage(analysis.language) ? analysis.language : undefined;
 }
 
@@ -46,7 +48,10 @@ interface DraftIssue extends Omit<Issue, "id"> {
 
 function claudeIssues(analysis: ClaudeAnalysis): { issues: DraftIssue[]; notFound: number } {
   let notFound = 0;
-  const issues = analysis.issues.map((issue): DraftIssue => {
+  // The tool does not check English (UNCHECKED_LANGUAGES): Claude is told not to report issues
+  // there, and any it reports anyway are dropped.
+  const checked = analysis.issues.filter((issue) => !isUncheckedLanguage(analysis.blocks[issue.block_index].language));
+  const issues = checked.map((issue): DraftIssue => {
     const block = analysis.blocks[issue.block_index];
     const start = findOccurrence(block.text, issue.original, issue.occurrence ?? 1);
     const located = start !== -1;
@@ -285,8 +290,15 @@ function applyLtAcceptedSpellingRule(issue: DraftIssue, language: Language | und
   return { ...issue, severity: minSeverity(issue.severity, "warning"), ltAccepted: true };
 }
 
-/** CLAUDE.md "Cách tính status". info issues never count. */
-export function computeStatus(hasText: boolean, issues: readonly Pick<Issue, "severity" | "sources" | "intentionalPossible" | "type">[]): AnalysisStatus {
+/**
+ * CLAUDE.md "Cách tính status". info issues never count. Text in a language the tool does
+ * not check (English) makes the image at least a warning: someone has to check it by hand.
+ */
+export function computeStatus(
+  hasText: boolean,
+  issues: readonly Pick<Issue, "severity" | "sources" | "intentionalPossible" | "type">[],
+  hasUncheckedText = false,
+): AnalysisStatus {
   if (!hasText) return "no_text";
   const isError = issues.some(
     (issue) =>
@@ -298,7 +310,7 @@ export function computeStatus(hasText: boolean, issues: readonly Pick<Issue, "se
   const isWarning = issues.some(
     (issue) => issue.severity === "error" || issue.severity === "warning" || issue.type === "ocr_uncertain",
   );
-  return isWarning ? "warning" : "ok";
+  return isWarning || hasUncheckedText ? "warning" : "ok";
 }
 
 /** Applies the first suggestion of every located, non-intentional error/warning (except ltAccepted ones). */
@@ -373,9 +385,14 @@ export function analyzeTexts(input: AnalysisInput, dictionary: DictionaryMatcher
     correctedText: correctedText(block.text, issues.filter((issue) => issue.blockIndex === block.index)),
   }));
 
+  const uncheckedBlocks = analysis.blocks
+    .filter((block) => isUncheckedLanguage(block.language) && block.text.trim().length > 0)
+    .map((block) => block.index);
+
   return {
     result: {
-      status: computeStatus(hasText, issues),
+      status: computeStatus(hasText, issues, uncheckedBlocks.length > 0),
+      uncheckedBlocks,
       language: analysis.language,
       hasText,
       blocks,

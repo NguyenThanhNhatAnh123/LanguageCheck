@@ -4,14 +4,14 @@ import { toWordKey } from "./word-key";
 
 describe("createDictionaryMatcher", () => {
   const matcher = createDictionaryMatcher([
-    { language: "en-US", wordKey: toWordKey("Haida", "en-US") },
+    { language: "es-ES", wordKey: toWordKey("Haida", "es-ES") },
     { language: "de-DE", wordKey: toWordKey("Straße", "de-DE") },
     { language: "de-DE", wordKey: toWordKey("für", "de-DE") },
   ]);
 
   it("matches regardless of case", () => {
-    expect(matcher.has("HAIDA", "en-US")).toBe(true);
-    expect(matcher.has("haida", "en-US")).toBe(true);
+    expect(matcher.has("HAIDA", "es-ES")).toBe(true);
+    expect(matcher.has("haida", "es-ES")).toBe(true);
   });
 
   it("matches ALL-CAPS German with SS and umlauts", () => {
@@ -21,11 +21,11 @@ describe("createDictionaryMatcher", () => {
 
   it("only matches within the same language", () => {
     expect(matcher.has("HAIDA", "de-DE")).toBe(false);
-    expect(matcher.has("FÜR", "en-US")).toBe(false);
+    expect(matcher.has("FÜR", "es-ES")).toBe(false);
   });
 
   it("does not match a different word", () => {
     expect(matcher.has("FUR", "de-DE")).toBe(false);
-    expect(matcher.has("Lakota", "en-US")).toBe(false);
+    expect(matcher.has("Lakota", "es-ES")).toBe(false);
   });
 });

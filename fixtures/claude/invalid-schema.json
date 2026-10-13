@@ -6,7 +6,7 @@
   "responses": [
     {
       "stop_reason": "end_turn",
-      "raw_text": "{\"has_text\": true, \"language\": \"en-US\", \"blocks\": \"not a list\", \"issues\": []}"
+      "raw_text": "{\"has_text\": true, \"language\": \"de-DE\", \"blocks\": \"not a list\", \"issues\": []}"
     }
   ]
 }

@@ -1,0 +1,31 @@
+{
+  "description": "de-DE: colloquial HAB for HABE (info, intentional); should end up in 'Không lỗi'.",
+  "match": ["slang"],
+  "pick_randomly": true,
+  "usage": { "input_tokens": 1830, "output_tokens": 360 },
+  "responses": [
+    {
+      "stop_reason": "end_turn",
+      "output": {
+        "has_text": true,
+        "language": "de-DE",
+        "blocks": [
+          { "index": 0, "text": "HAB DICH\nLIEB", "role": "headline", "language": "de-DE", "legibility": "clear" }
+        ],
+        "issues": [
+          {
+            "block_index": 0,
+            "original": "HAB",
+            "occurrence": null,
+            "type": "word_choice",
+            "severity": "info",
+            "intentional_possible": true,
+            "explanation_vi": "\"Hab\" là cách nói thân mật của \"habe\", thường dùng có chủ đích trên áo. Không phải lỗi.",
+            "suggestions": [{ "text": "HABE", "note_vi": "Chỉ đổi nếu muốn văn phong trang trọng" }]
+          }
+        ],
+        "notes_vi": null
+      }
+    }
+  ]
+}

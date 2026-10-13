@@ -16,7 +16,7 @@ describe("toWordKey", () => {
   });
 
   it("only folds ß to ss for de-DE", () => {
-    expect(toWordKey("straße", "en-US")).toBe("straße");
+    expect(toWordKey("straße", "es-ES")).toBe("straße");
   });
 
   it("normalizes decomposed accents to NFC", () => {
@@ -30,7 +30,7 @@ describe("toWordKey", () => {
   });
 
   it("lower-cases names in any case", () => {
-    expect(toWordKey("HAIDA", "en-US")).toBe("haida");
-    expect(toWordKey("Lakota", "en-US")).toBe("lakota");
+    expect(toWordKey("HAIDA", "es-ES")).toBe("haida");
+    expect(toWordKey("Lakota", "es-ES")).toBe("lakota");
   });
 });
