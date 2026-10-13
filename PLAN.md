@@ -354,6 +354,30 @@ Làm Giai đoạn 5:
   - Nếu Claude vẫn báo nhầm kiểu này kèm phương án sai (đã gặp `WOGEN`, `WIEGE`), thử Opus 5.5 (đúng 3/3 ở `WOG`).
   - Ca `KAFFEE MACHEN` chưa có cách chặn trong code; cần thêm dữ liệu để biết Claude có hay chấm thấp lỗi hợp số không.
 
+**Áp (c) + LanguageTool kiểm bản chữ thường do Claude trả về (2026-10-13):**
+- **(c) đã áp** (`cb47283`): lỗi chỉ Claude báo, không có phương án → tối đa Nghi ngờ.
+- **Phát hiện về LanguageTool:** với chữ IN HOA, LanguageTool gần như không bắt lỗi hợp giống/số (0/7 câu thử). Với chữ viết thường bình thường thì bắt được 6/7.
+  - Tiếng Đức cần danh từ viết hoa đúng; chữ thường toàn bộ thì LanguageTool chỉ báo "danh từ viết thường".
+  - Vì vậy Claude trả thêm `normal_case` cho block IN HOA (`d799e90`). Kèm bộ lọc "thiếu dấu phẩy" cho LanguageTool, và so sánh không phân biệt hoa/thường (`0680644`).
+- **Kết quả (Sonnet 5.5 low):**
+
+| Bộ | de-DE | fr-FR | es-ES | Tiếng Anh | s/ảnh | Kết luận |
+|---|---|---|---|---|---|---|
+| Tổng hợp (29) | ĐẠT | ĐẠT | ĐẠT | ĐẠT | 4,0 | **ĐẠT** |
+| Thật (13: 11 de, 2 fr) | ĐẠT | TRƯỢT (1) | — | — | 4,9 | TRƯỢT |
+
+- **LanguageTool giờ cùng báo 12/13 lỗi ở bộ tổng hợp** (trước: 7/13).
+  - Bắt thêm: `MEINE HUND`, `PETITES CHOSE`, `PARFAIT`, `ORGULLOSO`, `EL MEJOR MAMÁ`. Các lỗi này giờ là Lỗi nhờ cả 2 nguồn, không chỉ dựa vào Claude.
+  - Còn chỉ Claude bắt: `EIN GUTE MENSCH`, vì Claude viết hoa chữ đầu dòng thành `Gute` trong bản chữ thường; và `KAFFEE MACHEN`, vì LanguageTool không bắt kể cả khi viết thường.
+- **Bộ thật:**
+  - 3 ảnh từng bị báo "thiếu dấu phẩy" (`1.png`, `14`, `15`) giờ Không lỗi.
+  - `WOG` là Nghi ngờ.
+  - `KAFFEE MACHEN` ở Lỗi.
+- **Ca trượt: `2.png` (fr), tiêu chí "Chữ sau khi sửa".** `ÉPUISER` → `ÉPUISÉE` ở Lỗi (cả 2 nguồn), nhưng Claude đánh dấu "có thể cố ý" nên phương án không được áp. Cùng kiểu với `KAFFEE MACHEN` ở các lượt trước (warning + "có thể cố ý").
+- **Đề xuất, chờ duyệt (chỉ sửa prompt):**
+  - (d) Lỗi hợp giống/số/cách và chia động từ không bao giờ là cố ý: `error`, `intentional_possible = false`.
+  - (e) Trong `normal_case`, chữ đầu dòng không viết hoa trừ khi là đầu câu mới.
+
 **Đáp án bộ thật:** cả 8 dòng đang là `source = claude-draft` (Claude Code soạn từ việc đọc ảnh). Sẽ được thay bằng chữ gốc từ file thiết kế. Eval cảnh báo khi còn dòng `claude-draft`.
 
 ---
