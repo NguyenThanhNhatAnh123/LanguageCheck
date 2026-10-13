@@ -253,6 +253,22 @@ describe("fr-FR ALL CAPS missing accent rule", () => {
     expect(result.blocks[0].correctedText).toBe("FUER IMMER");
   });
 
+  it("FUER (de-DE): dropped even when LanguageTool alone flags it without offering FÜR", () => {
+    const result = run(analysis("de-DE", ["FUER IMMER"], []), [lt(0, 0, 4, "misspelling", ["FU", "VFR", "VDE"])]);
+    expect(result.issues).toEqual([]);
+    expect(result.status).toBe("ok");
+    expect(result.blocks[0].correctedText).toBe("FUER IMMER");
+  });
+
+  it("de-DE: a real misspelling Claude also reports on a word with UE is kept", () => {
+    const result = run(
+      analysis("de-DE", ["DAS FEUEER BRENNT"], [{ original: "FEUEER", type: "spelling", suggestions: [{ text: "FEUER", note_vi: null }] }]),
+      [lt(0, 4, 10, "misspelling", ["FEUER"])],
+    );
+    expect(result.issues).toHaveLength(1);
+    expect(result.status).toBe("error");
+  });
+
   it("FELIZ ANO NUEVO (es-ES): Claude's missing Ñ is an error even if marked warning/intentional", () => {
     const result = run(
       analysis("es-ES", ["FELIZ ANO NUEVO"], [

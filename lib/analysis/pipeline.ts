@@ -257,10 +257,16 @@ function applySpanishEnyeRule(issue: DraftIssue, language: Language | undefined)
 
 /**
  * de-DE: AE/OE/UE for Ä/Ö/Ü (FUER, MUETTER) is a valid spelling, so an issue that only asks
- * for the umlaut is dropped, from either source. A missing umlaut (FUR) is not affected.
+ * for the umlaut is dropped, from either source. LanguageTool often flags such a word
+ * without offering the umlaut form (FUER → FU, VFR), so a spelling match it alone reports on
+ * a word with AE/OE/UE is dropped too; if Claude flagged the same spot, Claude's judgment
+ * stands. A missing umlaut (FUR) is not affected.
  */
 function isGermanSpelledOutUmlaut(issue: DraftIssue, language: Language | undefined): boolean {
-  return language === "de-DE" && issue.suggestions.some((s) => isUmlautSpelledOut(issue.original, s.text, language));
+  if (language !== "de-DE") return false;
+  if (issue.suggestions.some((s) => isUmlautSpelledOut(issue.original, s.text, language))) return true;
+  const ltOnlySpelling = !issue.sources.includes("claude") && issue.ltIssueType === "misspelling";
+  return ltOnlySpelling && /ae|oe|ue/i.test(issue.original);
 }
 
 /** CLAUDE.md "Cách tính status". info issues never count. */
