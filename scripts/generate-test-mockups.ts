@@ -22,6 +22,8 @@ interface MockupCase {
   shirt?: string;
   /** Correct text when the design has an error (lines joined with \n). */
   fixed?: string;
+  /** The error must reach status "error" (PLAN.md "Tiêu chí đạt": ANO, FUR, gender/number/case). */
+  mustError?: boolean;
   tilt?: number;
   distress?: boolean;
   neckTag?: boolean;
@@ -45,25 +47,25 @@ const CASES: MockupCase[] = [
   { file: "en-lake-life-tag.png", language: "en-US", lines: ["LAKE LIFE"], font: "Impact", ink: "#0277bd", shirt: "#ffffff", neckTag: true },
   { file: "en-night-owl-transparent.png", language: "en-US", lines: ["NIGHT OWL"], font: "Arial Black", ink: "#ffffff", transparent: true },
   // de-DE
-  { file: "de-nur-fur-dich.png", language: "de-DE", lines: ["NUR FUR DICH"], font: "Impact", ink: "#c62828", shirt: "#ffffff", fixed: "NUR FÜR DICH" },
+  { file: "de-nur-fur-dich.png", language: "de-DE", lines: ["NUR FUR DICH"], font: "Impact", ink: "#c62828", shirt: "#ffffff", fixed: "NUR FÜR DICH", mustError: true },
   { file: "de-beste-mama.png", language: "de-DE", lines: ["DIE BESTE MAMA", "DER WELT"], font: "Arial Black", ink: "#ad1457", shirt: "#fce4ec" },
-  { file: "de-meine-hund.png", language: "de-DE", lines: ["ICH LIEBE", "MEINE HUND"], font: "Bahnschrift", weight: "bold", ink: "#ffffff", shirt: "#33691e", fixed: "ICH LIEBE\nMEINEN HUND" },
+  { file: "de-meine-hund.png", language: "de-DE", lines: ["ICH LIEBE", "MEINE HUND"], font: "Bahnschrift", weight: "bold", ink: "#ffffff", shirt: "#33691e", fixed: "ICH LIEBE\nMEINEN HUND", mustError: true },
   { file: "de-grosse-liebe.png", language: "de-DE", lines: ["GROSSE LIEBE"], font: "Georgia", weight: "bold", ink: "#4a148c", shirt: "#ede7f6" },
   { file: "de-fuer-immer.png", language: "de-DE", lines: ["FUER IMMER"], font: "Georgia", weight: "bold", ink: "#ffffff", shirt: "#37474f" },
-  { file: "de-fur-immer.png", language: "de-DE", lines: ["FUR IMMER"], font: "Bahnschrift", weight: "bold", ink: "#1a237e", shirt: "#e8eaf6", fixed: "FÜR IMMER" },
+  { file: "de-fur-immer.png", language: "de-DE", lines: ["FUR IMMER"], font: "Bahnschrift", weight: "bold", ink: "#1a237e", shirt: "#e8eaf6", fixed: "FÜR IMMER", mustError: true },
   { file: "de-bester-papa.png", language: "de-DE", lines: ["BESTER PAPA", "DER WELT"], font: "Impact", ink: "#ffeb3b", shirt: "#212121" },
   // fr-FR
   { file: "fr-vive-l-ete.png", language: "fr-FR", lines: ["VIVE L'ETE"], font: "Impact", ink: "#ff6f00", shirt: "#e0f7fa" },
-  { file: "fr-petites-chose.png", language: "fr-FR", lines: ["LES PETITES CHOSE", "DE LA VIE"], font: "Times New Roman", weight: "bold", ink: "#212121", shirt: "#f5f5f5", fixed: "LES PETITES CHOSES\nDE LA VIE" },
+  { file: "fr-petites-chose.png", language: "fr-FR", lines: ["LES PETITES CHOSE", "DE LA VIE"], font: "Times New Roman", weight: "bold", ink: "#212121", shirt: "#f5f5f5", fixed: "LES PETITES CHOSES\nDE LA VIE", mustError: true },
   { file: "fr-joyeux-anniversaire.png", language: "fr-FR", lines: ["Joyeux anniversaire", "maman"], font: "Segoe Print", weight: "bold", ink: "#6a1b9a", shirt: "#fff8e1" },
   { file: "fr-bonne-fete.png", language: "fr-FR", lines: ["Bonne fete", "papa"], font: "Lucida Handwriting", ink: "#ffffff", shirt: "#01579b", fixed: "Bonne fête\npapa" },
-  { file: "fr-maman-parfait.png", language: "fr-FR", lines: ["MAMAN", "PARFAIT"], font: "Comic Sans MS", weight: "bold", ink: "#880e4f", shirt: "#f8bbd0", fixed: "MAMAN\nPARFAITE" },
+  { file: "fr-maman-parfait.png", language: "fr-FR", lines: ["MAMAN", "PARFAIT"], font: "Comic Sans MS", weight: "bold", ink: "#880e4f", shirt: "#f8bbd0", fixed: "MAMAN\nPARFAITE", mustError: true },
   // es-ES
   { file: "es-tu-eres.png", language: "es-ES", lines: ["TU ERES", "MI VIDA"], font: "Arial Black", ink: "#d32f2f", shirt: "#fafafa", fixed: "TÚ ERES\nMI VIDA" },
   { file: "es-feliz-cumple.png", language: "es-ES", lines: ["¡FELIZ", "CUMPLEAÑOS!"], font: "Comic Sans MS", weight: "bold", ink: "#ffeb3b", shirt: "#283593" },
   { file: "es-mejor-abuela.png", language: "es-ES", lines: ["LA MEJOR ABUELA", "DEL MUNDO"], font: "Georgia", weight: "bold", ink: "#1b5e20", shirt: "#ffffff" },
-  { file: "es-feliz-ano-nuevo.png", language: "es-ES", lines: ["FELIZ ANO", "NUEVO"], font: "Arial Black", ink: "#ffd700", shirt: "#0d1b3e", fixed: "FELIZ AÑO\nNUEVO" },
-  { file: "es-abuela-orgulloso.png", language: "es-ES", lines: ["ABUELA", "ORGULLOSO"], font: "Times New Roman", weight: "bold", ink: "#4e342e", shirt: "#ffe0b2", fixed: "ABUELA\nORGULLOSA" },
+  { file: "es-feliz-ano-nuevo.png", language: "es-ES", lines: ["FELIZ ANO", "NUEVO"], font: "Arial Black", ink: "#ffd700", shirt: "#0d1b3e", fixed: "FELIZ AÑO\nNUEVO", mustError: true },
+  { file: "es-abuela-orgulloso.png", language: "es-ES", lines: ["ABUELA", "ORGULLOSO"], font: "Times New Roman", weight: "bold", ink: "#4e342e", shirt: "#ffe0b2", fixed: "ABUELA\nORGULLOSA", mustError: true },
   // No text
   { file: "blank-shirt.png", language: null, lines: [], font: "Impact", ink: "#000000", shirt: "#90a4ae" },
 ];
@@ -141,11 +143,11 @@ async function main(): Promise<void> {
   const outDir = path.resolve(outIndex === -1 ? "test-images/synthetic" : process.argv[outIndex + 1]);
   fs.mkdirSync(outDir, { recursive: true });
 
-  const rows = ["file,expected_text,has_error,language"];
+  const rows = ["file,expected_text,has_error,language,must_error"];
   for (const c of CASES) {
     await sharp(Buffer.from(mockupSvg(c))).png().toFile(path.join(outDir, c.file));
     const expected = c.fixed ?? c.lines.join("\n");
-    rows.push([c.file, csvField(expected), c.fixed ? "yes" : "no", c.language ?? ""].join(","));
+    rows.push([c.file, csvField(expected), c.fixed ? "yes" : "no", c.language ?? "", c.mustError ? "yes" : ""].join(","));
   }
   fs.writeFileSync(path.join(outDir, "expected.csv"), rows.join("\n") + "\n");
 

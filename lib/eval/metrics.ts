@@ -14,6 +14,8 @@ export interface EvalCase {
   correctedText: string | null;
   /** Language of the design, from expected.csv's optional "language" column. */
   language: string | null;
+  /** From the optional "must_error" column: this error must reach status "error", not just "warning". */
+  mustBeError?: boolean;
 }
 
 export interface Rate {
@@ -97,6 +99,87 @@ export function summarizeByLanguage(cases: readonly EvalCase[]): Array<{ languag
   return [...groups.entries()]
     .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
     .map(([language, group]) => ({ language, summary: summarize(group) }));
+}
+
+// ---------------------------------------------------------------------------
+// Pass criteria (PLAN.md "Tiêu chí đạt"), checked per language.
+// ---------------------------------------------------------------------------
+
+/** The tool's main languages: the detection criteria only apply to them. */
+export const MAIN_LANGUAGES = ["de-DE", "fr-FR", "es-ES"];
+export const MAX_WARNINGS_ON_CLEAN = 2;
+export const MAX_AVERAGE_MS = 15_000;
+
+export interface CriterionResult {
+  label: string;
+  pass: boolean;
+  /** One line per failing case: "<file>: <reason>". */
+  failures: string[];
+}
+
+export interface CriteriaReport {
+  pass: boolean;
+  byLanguage: Array<{ language: string; pass: boolean; criteria: CriterionResult[] }>;
+  /** Criteria over the whole run (average time). */
+  overall: CriterionResult[];
+}
+
+function criterion(label: string, failures: string[], pass = failures.length === 0): CriterionResult {
+  return { label, pass, failures };
+}
+
+function languageCriteria(language: string, cases: readonly EvalCase[]): CriterionResult[] {
+  const clean = cases.filter((c) => !c.expectedError);
+  const withError = cases.filter((c) => c.expectedError);
+  const statusLabel = (c: EvalCase) => (c.status === null ? "phân tích thất bại" : `kết quả ${c.status}`);
+
+  const cleanWarnings = clean.filter((c) => c.status === "warning");
+  const results = [
+    criterion("Không ảnh đúng nào bị xếp Lỗi", clean.filter((c) => c.status === "error").map((c) => `${c.file}: ảnh đúng bị xếp Lỗi`)),
+    criterion(
+      `Nghi ngờ trên ảnh đúng ≤ ${MAX_WARNINGS_ON_CLEAN}`,
+      cleanWarnings.map((c) => `${c.file}: ảnh đúng bị xếp Nghi ngờ`),
+      cleanWarnings.length <= MAX_WARNINGS_ON_CLEAN,
+    ),
+  ];
+  if (MAIN_LANGUAGES.includes(language)) {
+    results.push(
+      criterion(
+        "Mọi lỗi cố ý ở Lỗi hoặc Nghi ngờ",
+        withError.filter((c) => c.status !== "error" && c.status !== "warning").map((c) => `${c.file}: bỏ sót (${statusLabel(c)})`),
+      ),
+      criterion(
+        "Ca bắt buộc (ANO, FUR, sai giống/số…) ở Lỗi",
+        withError.filter((c) => c.mustBeError && c.status !== "error").map((c) => `${c.file}: phải là Lỗi (${statusLabel(c)})`),
+      ),
+    );
+  }
+  results.push(
+    criterion(
+      "Chữ sau khi sửa đúng ở mọi ca",
+      cases
+        .filter((c) => c.expectedText !== null)
+        .filter((c) => c.correctedText === null || normalizeText(c.correctedText) !== normalizeText(c.expectedText ?? ""))
+        .map((c) =>
+          c.correctedText === null
+            ? `${c.file}: phân tích thất bại`
+            : `${c.file}: ra ${JSON.stringify(c.correctedText)}, đáp án ${JSON.stringify(c.expectedText)}`,
+        ),
+    ),
+  );
+  return results;
+}
+
+/** Checks the pass criteria per language, plus the average time per image. */
+export function evaluateCriteria(cases: readonly EvalCase[], averageMs: number): CriteriaReport {
+  const byLanguage = summarizeByLanguage(cases).map(({ language }) => {
+    const criteria = languageCriteria(language, cases.filter((c) => (c.language ?? UNKNOWN_LANGUAGE) === language));
+    return { language, pass: criteria.every((c) => c.pass), criteria };
+  });
+  const overall = [
+    criterion(`Trung bình < ${MAX_AVERAGE_MS / 1000} s/ảnh`, averageMs < MAX_AVERAGE_MS ? [] : [`trung bình ${(averageMs / 1000).toFixed(1)} s/ảnh`]),
+  ];
+  return { pass: byLanguage.every((l) => l.pass) && overall.every((c) => c.pass), byLanguage, overall };
 }
 
 export function formatRate(value: Rate): string {

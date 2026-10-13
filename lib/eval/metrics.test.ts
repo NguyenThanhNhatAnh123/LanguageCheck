@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRate, normalizeText, parseExpectedError, summarize, summarizeByLanguage, type EvalCase } from "./metrics";
+import { evaluateCriteria, formatRate, normalizeText, parseExpectedError, summarize, summarizeByLanguage, type EvalCase } from "./metrics";
 
 const c = (expectedError: boolean, status: EvalCase["status"], extra: Partial<EvalCase> = {}): EvalCase => ({
   file: "x.png",
@@ -76,5 +76,50 @@ describe("summarizeByLanguage", () => {
     expect(groups[0].summary.detection).toEqual({ hits: 1, total: 1, rate: 1 });
     expect(groups[0].summary.falseAlarm).toEqual({ hits: 1, total: 1, rate: 1 });
     expect(groups[1].summary.detection).toEqual({ hits: 0, total: 1, rate: 0 });
+  });
+});
+
+describe("evaluateCriteria", () => {
+  const de = (expectedError: boolean, status: EvalCase["status"], extra: Partial<EvalCase> = {}) => c(expectedError, status, { language: "de-DE", ...extra });
+
+  it("passes a clean run", () => {
+    const report = evaluateCriteria(
+      [
+        de(true, "error", { mustBeError: true, expectedText: "FÜR IMMER", correctedText: "FÜR IMMER" }),
+        de(false, "ok", { expectedText: "FUER IMMER", correctedText: "FUER IMMER" }),
+        de(false, "warning"),
+        de(false, "warning"),
+      ],
+      3600,
+    );
+    expect(report.pass).toBe(true);
+  });
+
+  it("fails on a clean image in Lỗi, too many warnings, a miss, a must-error warning, broken text and slowness", () => {
+    const report = evaluateCriteria(
+      [
+        de(false, "error", { file: "clean-error.png" }),
+        de(false, "warning", { file: "w1.png" }),
+        de(false, "warning", { file: "w2.png" }),
+        de(false, "warning", { file: "w3.png" }),
+        de(true, "ok", { file: "missed.png" }),
+        de(true, "warning", { file: "ano.png", mustBeError: true }),
+        de(true, "error", { file: "fu.png", expectedText: "FÜR IMMER", correctedText: "FU IMMER" }),
+      ],
+      16_000,
+    );
+    expect(report.pass).toBe(false);
+    const [german] = report.byLanguage;
+    expect(german.criteria.map((r) => r.pass)).toEqual([false, false, false, false, false]);
+    expect(german.criteria[2].failures).toEqual(["missed.png: bỏ sót (kết quả ok)"]);
+    expect(german.criteria[3].failures).toEqual(["ano.png: phải là Lỗi (kết quả warning)"]);
+    expect(german.criteria[4].failures[0]).toContain('ra "FU IMMER"');
+    expect(report.overall[0].pass).toBe(false);
+  });
+
+  it("applies the detection criteria to de/fr/es only", () => {
+    const report = evaluateCriteria([c(true, "ok", { language: "en-US" })], 1000);
+    expect(report.byLanguage[0].criteria.map((r) => r.label)).not.toContain("Mọi lỗi cố ý ở Lỗi hoặc Nghi ngờ");
+    expect(report.pass).toBe(true);
   });
 });

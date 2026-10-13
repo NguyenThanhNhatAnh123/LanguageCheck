@@ -6,7 +6,8 @@
 //        npm run eval -- --dir test-images/synthetic    (the fixed synthetic set, see npm run test-images)
 //        npm run eval -- --verbose                      (also print what Claude read and the issues)
 //
-// expected.csv: header "file,expected_text,has_error[,language]" (see docs/expected.example.csv).
+// expected.csv: header "file,expected_text,has_error[,language][,must_error]" (see docs/expected.example.csv).
+// The run ends with the pass criteria (PLAN.md "Tiêu chí đạt"): ĐẠT/TRƯỢT per language, failing cases listed.
 // Results are also saved to <dir>/eval-results/<timestamp>.json for later comparison.
 // With an API key this calls Claude for real (and counts in usage_daily); without one in
 // development it uses the mock fixtures, which only checks the plumbing.
@@ -18,7 +19,7 @@ import type { AnalyzeApiResponse } from "../lib/analysis/api-types";
 import { analyzeMockup } from "../lib/analysis/analyze-mockup";
 import { getClaudeRuntime } from "../lib/claude";
 import { parseCsv } from "../lib/dictionary/csv";
-import { formatRate, parseExpectedError, summarize, summarizeByLanguage, type EvalCase, type EvalSummary } from "../lib/eval/metrics";
+import { evaluateCriteria, formatRate, parseExpectedError, summarize, summarizeByLanguage, type EvalCase, type EvalSummary } from "../lib/eval/metrics";
 
 // lib/ reads env lazily (on first use), so loading it here, after the imports, is enough.
 loadEnvConfig(process.cwd());
@@ -89,6 +90,7 @@ async function main(): Promise<void> {
   const textIndex = column("expected_text");
   const errorIndex = column("has_error");
   const languageIndex = column("language");
+  const mustErrorIndex = column("must_error");
   if (fileIndex === -1 || errorIndex === -1) {
     fail('expected.csv cần cột "file" và "has_error" (cột "expected_text" và "language" không bắt buộc).');
   }
@@ -105,6 +107,7 @@ async function main(): Promise<void> {
     const expectedError = parseExpectedError(fields[errorIndex] ?? "");
     const expectedText = textIndex === -1 ? null : fields[textIndex]?.trim() || null;
     const language = languageIndex === -1 ? null : fields[languageIndex]?.trim() || null;
+    const mustBeError = mustErrorIndex !== -1 && parseExpectedError(fields[mustErrorIndex] ?? "") === true;
     const imagePath = path.join(dir, file);
     if (!file || expectedError === null) {
       console.warn(`Dòng ${line}: thiếu tên file hoặc has_error không hợp lệ, bỏ qua.`);
@@ -131,7 +134,7 @@ async function main(): Promise<void> {
           output: response.usage.outputTokens,
         }
       : null;
-    cases.push({ file, expectedError, expectedText, status, correctedText, language, ms, model: response.ok ? response.model : null, attempts: response.attempts, tokens });
+    cases.push({ file, expectedError, expectedText, status, correctedText, language, mustBeError, ms, model: response.ok ? response.model : null, attempts: response.attempts, tokens });
 
     const flagged = status === "error" || status === "warning";
     const verdict = status === null ? "THẤT BẠI" : flagged === expectedError ? "đúng" : expectedError ? "BỎ SÓT" : "BÁO NHẦM";
@@ -165,12 +168,26 @@ async function main(): Promise<void> {
   console.log(["Ngôn ngữ".padEnd(12), " Ảnh", "Bắt đúng".padEnd(18), "  chỉ tính Lỗi".padEnd(18), "Báo nhầm".padEnd(18), "  chỉ tính Lỗi".padEnd(18), "Chữ sửa khớp"].join("  "));
   for (const group of byLanguage) console.log(summaryLine(group.language, group.summary));
 
+  const criteria = evaluateCriteria(cases, averages.ms);
+  console.log("\n=== Tiêu chí đạt ===");
+  for (const group of criteria.byLanguage) {
+    console.log(`${group.language}: ${group.pass ? "ĐẠT" : "TRƯỢT"}`);
+    for (const result of group.criteria) {
+      console.log(`  ${result.pass ? "✓" : "✗"} ${result.label}`);
+      for (const failure of result.failures) console.log(`      - ${failure}`);
+    }
+  }
+  for (const result of criteria.overall) {
+    console.log(`${result.pass ? "✓" : "✗"} ${result.label} (${(averages.ms / 1000).toFixed(1)} s)`);
+  }
+  console.log(criteria.pass ? "KẾT LUẬN: ĐẠT" : "KẾT LUẬN: TRƯỢT");
+
   const outDir = path.join(dir, "eval-results");
   fs.mkdirSync(outDir, { recursive: true });
   const outFile = path.join(outDir, `${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
   fs.writeFileSync(
     outFile,
-    JSON.stringify({ mock: runtime.mock, model: runtime.mock ? null : runtime.model, effort, summary, byLanguage, averages, cases }, null, 2),
+    JSON.stringify({ mock: runtime.mock, model: runtime.mock ? null : runtime.model, effort, summary, byLanguage, criteria, averages, cases }, null, 2),
   );
   console.log(`\nĐã lưu kết quả: ${outFile}`);
 }
