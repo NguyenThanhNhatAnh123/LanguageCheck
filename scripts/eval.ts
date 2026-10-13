@@ -6,7 +6,9 @@
 //        npm run eval -- --dir test-images/synthetic    (the fixed synthetic set, see npm run test-images)
 //        npm run eval -- --verbose                      (also print what Claude read and the issues)
 //
-// expected.csv: header "file,expected_text,has_error[,language][,must_error]" (see docs/expected.example.csv).
+// expected.csv: header "file,expected_text,has_error[,language][,must_error][,source]" (see docs/expected.example.csv).
+// source = "claude-draft" marks answers Claude Code wrote by reading the image: unconfirmed, so
+// the run warns and its verdict is only provisional until they are replaced by the design text.
 // The run ends with the pass criteria (PLAN.md "Tiêu chí đạt"): ĐẠT/TRƯỢT per language, failing cases listed.
 // Results are also saved to <dir>/eval-results/<timestamp>.json for later comparison.
 // With an API key this calls Claude for real (and counts in usage_daily); without one in
@@ -34,6 +36,9 @@ function resizeLikeBrowser(file: string): Promise<Buffer> {
     .jpeg({ quality: 85 })
     .toBuffer();
 }
+
+/** expected.csv "source" value for answers Claude Code drafted from the image (unconfirmed). */
+const DRAFT_SOURCE = "claude-draft";
 
 function argValue(name: string): string | undefined {
   const index = process.argv.indexOf(name);
@@ -95,10 +100,14 @@ async function main(): Promise<void> {
   const errorIndex = column("has_error");
   const languageIndex = column("language");
   const mustErrorIndex = column("must_error");
+  const sourceIndex = column("source");
+  const draftRows = sourceIndex === -1 ? 0 : rows.filter((fields) => fields[sourceIndex]?.trim().toLowerCase() === DRAFT_SOURCE).length;
+  const draftWarning = `CẢNH BÁO: ${draftRows}/${rows.length} dòng đáp án là bản nháp Claude soạn (source = ${DRAFT_SOURCE}), chưa được xác nhận. Kết luận chỉ là tạm thời.`;
   if (fileIndex === -1 || errorIndex === -1) {
     fail('expected.csv cần cột "file" và "has_error" (cột "expected_text" và "language" không bắt buộc).');
   }
 
+  if (draftRows > 0) console.log(draftWarning);
   const runtime = getClaudeRuntime();
   const effort = process.env.CLAUDE_ANALYZE_EFFORT || "low";
   console.log(`Thư mục: ${dir}`);
@@ -188,13 +197,14 @@ async function main(): Promise<void> {
     console.log(`${result.pass ? "✓" : "✗"} ${result.label} (${(averages.ms / 1000).toFixed(1)} s)`);
   }
   console.log(criteria.pass ? "KẾT LUẬN: ĐẠT" : "KẾT LUẬN: TRƯỢT");
+  if (draftRows > 0) console.log(draftWarning);
 
   const outDir = path.join(dir, "eval-results");
   fs.mkdirSync(outDir, { recursive: true });
   const outFile = path.join(outDir, `${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
   fs.writeFileSync(
     outFile,
-    JSON.stringify({ mock: runtime.mock, model: runtime.mock ? null : runtime.model, effort, summary, byLanguage, criteria, averages, cases }, null, 2),
+    JSON.stringify({ mock: runtime.mock, model: runtime.mock ? null : runtime.model, effort, draftRows, summary, byLanguage, criteria, averages, cases }, null, 2),
   );
   console.log(`\nĐã lưu kết quả: ${outFile}`);
 }
