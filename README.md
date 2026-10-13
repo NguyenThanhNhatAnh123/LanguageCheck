@@ -1,6 +1,6 @@
 # POD Text QA
 
-Tool nội bộ cho team POD: tải lên hàng loạt mockup, đọc chữ trên ảnh, kiểm tra chính tả/ngữ pháp bằng LanguageTool + Claude, và **chỉ hiện mockup có lỗi** kèm cách sửa. Ảnh và kết quả không bao giờ được lưu.
+Tool nội bộ cho team POD: tải lên hàng loạt mockup, đọc chữ trên ảnh, kiểm tra chính tả/ngữ pháp **tiếng Đức, Pháp, Tây Ban Nha** bằng LanguageTool + Claude, và **chỉ hiện mockup có lỗi** kèm cách sửa. Chữ tiếng Anh không được kiểm: ảnh đó vào nhóm Nghi ngờ để người xem tay. Ảnh và kết quả không bao giờ được lưu.
 
 - Đặc tả và quy ước: [`CLAUDE.md`](CLAUDE.md)
 - Kế hoạch từng giai đoạn và việc cần làm tay: [`PLAN.md`](PLAN.md)

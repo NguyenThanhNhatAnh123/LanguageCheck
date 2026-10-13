@@ -307,6 +307,21 @@ Làm Giai đoạn 5:
 - en-US vẫn trượt tiêu chí 3 ở `DONT LOOSE HOPE`. Claude coi `DONT` là "có thể cố ý" nên ra `DONT LOSE HOPE`. Quy tắc (b) không nhằm sửa ca này. Còn chờ quyết định: thiếu dấu nháy trong tiếng Anh (`DONT`, `CANT`) có luôn là Lỗi không.
 - LanguageTool chạy ở mọi ảnh có chữ (30/30 bộ tổng hợp, 8/8 bộ thật).
 
+**Bỏ tiếng Anh khỏi tool (2026-10-13):**
+- Tool chỉ kiểm de-DE, fr-FR, es-ES. Claude vẫn nhận diện tiếng Anh nhưng không báo lỗi; LanguageTool bỏ qua block tiếng Anh.
+- Ảnh có chữ tiếng Anh vào nhóm Nghi ngờ, kèm "Chữ tiếng Anh: tool không kiểm, cần xem tay" (CLAUDE.md "Quy tắc ngôn ngữ").
+- Bộ tổng hợp còn 29 ảnh: 12 ảnh tiếng Anh được chuyển sang de/fr/es, giữ các kiểu khó (nghiêng, mòn, mờ, chữ viết tay, trong suốt, tag cổ áo); giữ 1 ảnh tiếng Anh phải vào Nghi ngờ.
+- Ca `DONT` không còn liên quan.
+
+| Bộ | de-DE | fr-FR | es-ES | Tiếng Anh (không kiểm) | s/ảnh | Kết luận |
+|---|---|---|---|---|---|---|
+| Tổng hợp (29) | ĐẠT | ĐẠT | ĐẠT | ĐẠT (ở Nghi ngờ) | 3,8 | **ĐẠT** |
+| Thật (8, toàn de-DE) | ĐẠT | — | — | — | 5,0 | **ĐẠT** (tạm thời: đáp án `claude-draft`) |
+
+- Ảnh đúng bị xếp Nghi ngờ (trong giới hạn ≤ 2): `de-haida-stolz.png` (tên riêng chưa có trong từ điển), `08-sk7535-black.jpg` (`WOG`, LanguageTool coi là đúng).
+- de/fr/es: bắt đúng 12/12 lỗi, đều ở Lỗi, kể cả 3 ca mới chuyển sang (`GUTE MENSCH` chữ mòn, `EL MEJOR MAMÁ` chữ nghiêng, `CUMPLEANOS` font máy chữ). "Chữ sau khi sửa" đúng 28/28.
+- Tag cổ áo tiếng Anh (`SIZE M / 100% COTTON`) được bỏ qua đúng, không làm ảnh thành Nghi ngờ.
+
 **Đáp án bộ thật:** cả 8 dòng đang là `source = claude-draft` (Claude Code soạn từ việc đọc ảnh). Sẽ được thay bằng chữ gốc từ file thiết kế. Eval cảnh báo khi còn dòng `claude-draft`.
 
 ---

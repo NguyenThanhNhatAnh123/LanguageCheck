@@ -3,7 +3,7 @@
 Tool nội bộ cho team POD: tải lên hàng loạt mockup → đọc chữ trên ảnh → kiểm tra chính tả/ngữ pháp bằng 2 nguồn (LanguageTool + Claude API) → **chỉ hiển thị mockup có lỗi**, kèm lỗi ở đâu và sửa thế nào → đóng phiên là mất hết.
 
 - Volume: 400–1000 ảnh/ngày, mỗi lượt vài chục ảnh, có thể nhiều người dùng cùng lúc.
-- Ngôn ngữ chữ trên ảnh: chủ yếu `de-DE`, `fr-FR`, `es-ES`; `en-US` là phụ.
+- Ngôn ngữ được kiểm: `de-DE`, `fr-FR`, `es-ES`. **Không kiểm tiếng Anh:** ảnh có chữ tiếng Anh vào nhóm Nghi ngờ kèm ghi chú "Chữ tiếng Anh: tool không kiểm, cần xem tay" (xem "Quy tắc ngôn ngữ").
 - Ngôn ngữ giao diện và giải thích lỗi: **tiếng Việt**.
 - Kế hoạch từng giai đoạn: `PLAN.md`. Làm đúng thứ tự; giai đoạn trước chạy được mới sang giai đoạn sau.
 
@@ -54,7 +54,7 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
 3. Server xử lý trong bộ nhớ, theo thứ tự:
    1. **Gọi Claude** vision với prompt trong `docs/claude-analyze-prompt.md`, có từ điển team trong system prompt. Validate kết quả bằng zod. Định vị từng issue: tìm lần xuất hiện thứ `occurrence` (thiếu thì mặc định 1) của `original` trong `blocks[block_index].text`.
    2. **Gọi LanguageTool.** Gom các block theo `blocks[].language`. Với mỗi ngôn ngữ, nối text các block bằng `"\n"`, gửi `POST {LT_URL}/v2/check` (form-urlencoded: `text`, `language`), rồi map `offset/length` ngược về từng block. Block `unknown` không gửi LanguageTool, chỉ dùng kết quả Claude.
-   3. **Lọc và quy đổi.** Bỏ các **lỗi chính tả** (Claude: `spelling`, `capitalization`, `accent`; LanguageTool: `misspelling`) có `original` nằm trong từ điển (đúng ngôn ngữ, so theo `word_key`); với cụm nhiều từ thì **mọi từ** trong cụm phải có trong từ điển. Áp cho **cả 2 nguồn**, để thêm từ vào từ điển thì lỗi Claude báo cũng biến mất. Lỗi ngữ pháp, dấu câu, chọn từ… không bao giờ bị từ điển che (ví dụ có `your` trong từ điển vẫn phải bắt `YOUR THE BEST`). Quy đổi severity theo mục "Quy đổi severity LanguageTool", rồi áp các quy tắc ngôn ngữ ở dưới. Match của LanguageTool nằm trên chỗ `[?]` (chữ Claude không đọc được) thì bỏ, vì sự không chắc chắn đó đã có issue `ocr_uncertain` của Claude.
+   3. **Lọc và quy đổi.** Bỏ các **lỗi chính tả** (Claude: `spelling`, `capitalization`, `accent`; LanguageTool: `misspelling`) có `original` nằm trong từ điển (đúng ngôn ngữ, so theo `word_key`); với cụm nhiều từ thì **mọi từ** trong cụm phải có trong từ điển. Áp cho **cả 2 nguồn**, để thêm từ vào từ điển thì lỗi Claude báo cũng biến mất. Lỗi ngữ pháp, dấu câu, chọn từ… không bao giờ bị từ điển che (ví dụ có `meine` trong từ điển vẫn phải bắt `ICH LIEBE MEINE HUND`). Quy đổi severity theo mục "Quy đổi severity LanguageTool", rồi áp các quy tắc ngôn ngữ ở dưới. Match của LanguageTool nằm trên chỗ `[?]` (chữ Claude không đọc được) thì bỏ, vì sự không chắc chắn đó đã có issue `ocr_uncertain` của Claude.
       - Gọi LanguageTool lỗi ở bất kỳ ngôn ngữ nào thì coi cả lượt là `offline` và bỏ toàn bộ kết quả LanguageTool của ảnh đó, không trộn kết quả nửa vời.
    4. **Merge 2 nguồn**, xử lý phương án sửa, áp quy tắc "chữ in hoa thiếu dấu" của fr-FR, rồi tính `status` và "Chữ sau khi sửa".
    5. **Trả JSON về client.** Cộng token đã dùng vào bảng thống kê ngày. Buffer ảnh bị bỏ đi.
@@ -82,6 +82,7 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
 ### Thẻ mockup lỗi
 
 - Ảnh thu nhỏ, bấm vào để phóng to. Kèm tên file và ngôn ngữ.
+- Block chữ tiếng Anh: hiện chữ, kèm dòng "Chữ tiếng Anh: tool không kiểm, cần xem tay." (không có lỗi hay phương án sửa).
 - Chữ đọc được, highlight chỗ lỗi.
 - Mỗi lỗi gồm: `chữ sai → phương án sửa (1–3)`, giải thích tiếng Việt, badge nguồn (`LanguageTool` / `Claude` / `Cả 2`).
   - Issue của Claude và issue đã gộp: dùng `explanation_vi` của Claude.
@@ -120,7 +121,7 @@ LanguageTool không có severity. Quy đổi theo `rule.issueType` của từng 
 - Hai issue coi là trùng nhau khi cùng block và vùng chữ giao nhau. Gộp lại thành một issue với `sources = ["lt", "claude"]`. Một issue của Claude có thể gộp nhiều match LanguageTool.
 - **Vùng chữ của issue đã gộp là hợp của các vùng**, và mọi phương án sửa được dời về vùng chung đó. Ví dụ Claude báo `chose` → `choses`, LanguageTool báo `petites chose` → `petites choses`: issue gộp có `original` là `petites chose`, phương án của Claude thành `petites choses`. Lý do: nếu không dời, áp phương án của LanguageTool vào chỗ `chose` sẽ ra `petites petites choses`.
 - Severity của issue đã gộp:
-  - Claude đánh `intentional_possible = true` hoặc severity `info` → **Claude thắng**: lấy severity và `intentional_possible` của Claude. Lý do: Claude hiểu ngữ cảnh, LanguageTool thì không. Ví dụ `GONNA`: LanguageTool báo `misspelling`, Claude báo intentional → issue là `info`, áo không bị đánh lỗi.
+  - Claude đánh `intentional_possible = true` hoặc severity `info` → **Claude thắng**: lấy severity và `intentional_possible` của Claude. Lý do: Claude hiểu ngữ cảnh, LanguageTool thì không. Ví dụ `HAB DICH LIEB`: LanguageTool báo `HAB` là `misspelling`, Claude báo intentional (cách nói thân mật của `HABE`) → issue là `info`, áo không bị đánh lỗi.
   - Các trường hợp còn lại → lấy severity cao hơn (giữa Claude và match LanguageTool nặng nhất).
 - Issue của Claude không tìm thấy `original` trong block thì không gộp, không highlight, không áp vào "Chữ sau khi sửa", và bị hạ xuống tối đa `warning`.
 - Phương án sửa của issue đã gộp: xem mục "Phương án sửa".
@@ -131,8 +132,8 @@ LanguageTool không có severity. Quy đổi theo `rule.issueType` của từng 
 
 0. **Cắt phần lặp lại chữ xung quanh** (`trimSuggestionContext()`). Phương án chỉ thay đúng vùng chữ của issue (prompt cũng dặn vậy), nhưng model đôi khi viết cả cụm (`FREIND` → `BEST FRIEND` trong `BEST FREIND`), áp vào sẽ lặp chữ. Các từ đầu phương án trùng với các từ ngay trước vùng chữ, và các từ cuối trùng với các từ ngay sau, bị cắt (không phân biệt hoa thường, giữ ít nhất 1 từ). Cắt xong mà giống `original` thì phương án bị bỏ ở bước 2.
 1. **Chuyển từng phương án về đúng kiểu chữ của `original`.** Chỉ xét chữ cái, bỏ qua số và dấu câu.
-   - `original` in hoa toàn bộ → phương án in hoa toàn bộ (`YOUR` → `YOU'RE`).
-   - `original` viết hoa chữ đầu, còn lại thường → phương án viết hoa chữ đầu, còn lại thường (`Your` → `You're`).
+   - `original` in hoa toàn bộ → phương án in hoa toàn bộ (`FETE` → `FÊTE`).
+   - `original` viết hoa chữ đầu, còn lại thường → phương án viết hoa chữ đầu, còn lại thường (`Fete` → `Fête`).
    - `original` thường toàn bộ → phương án thường toàn bộ.
    - `original` chỉ có 1 chữ cái in hoa (`A`, `I`) → xét cả block: block in hoa toàn bộ thì in hoa toàn bộ, ngược lại viết hoa chữ đầu (`A` → `An`, không thành `AN`).
    - Kiểu khác (ví dụ `McDonald`) → giữ nguyên phương án.
@@ -150,8 +151,8 @@ Issue `info` vẫn hiện trong thẻ nhưng **không tính vào `status`**.
 - Lỗi ngữ pháp, hợp giống, chọn từ… không bị ảnh hưởng.
 
 - `error`: có issue severity `error` được cả 2 nguồn cùng báo, hoặc Claude báo `error` với `intentional_possible = false`
-- `warning`: còn issue `error`/`warning` nào đó mà không đủ điều kiện `error` ở trên, hoặc có issue loại `ocr_uncertain` (kể cả severity `info`). Gồm: issue chỉ 1 nguồn báo, và issue `warning` cả 2 nguồn cùng báo (ví dụ tên riêng `HAIDA`: Claude báo warning có chủ đích, LanguageTool báo misspelling).
-- `ok`: không có issue `error`/`warning` nào. Mockup chỉ có issue `info` cũng là `ok` (nhóm "Không lỗi").
+- `warning`: còn issue `error`/`warning` nào đó mà không đủ điều kiện `error` ở trên, hoặc có issue loại `ocr_uncertain` (kể cả severity `info`). Gồm: issue chỉ 1 nguồn báo, và issue `warning` cả 2 nguồn cùng báo (ví dụ tên riêng `HAIDA`: Claude báo warning có chủ đích, LanguageTool báo misspelling). Cũng là `warning` khi ảnh có chữ tiếng Anh (không kiểm, cần xem tay).
+- `ok`: không có issue `error`/`warning` nào và không có chữ tiếng Anh. Mockup chỉ có issue `info` cũng là `ok` (nhóm "Không lỗi").
 - `no_text`: ảnh không có chữ
 - `failed`: lỗi xử lý, trả về kèm lý do
 
@@ -177,7 +178,7 @@ Các hàm quy đổi, gắn nhãn, merge, xử lý phương án sửa, tính `st
 Lần gọi đầu tiên cho mỗi ngôn ngữ sau khi LanguageTool khởi động rất chậm, vì nó phải nạp dữ liệu ngôn ngữ. Đo trên máy dev: de-DE ~12s, fr-FR ~6s.
 
 - **Timeout** mỗi lời gọi LanguageTool là 30s, retry 1 lần.
-- **Nạp sẵn**: gửi 1 câu ngắn cố định cho mỗi ngôn ngữ (`en-US`, `de-DE`, `fr-FR`, `es-ES`).
+- **Nạp sẵn**: gửi 1 câu ngắn cố định cho mỗi ngôn ngữ được kiểm (`de-DE`, `fr-FR`, `es-ES`).
   - **Mỗi câu có 1 lỗi chính tả cố ý** (ví dụ `Das ist ein kurzer Tset.`). Lý do: câu đúng hoàn toàn không làm LanguageTool nạp phần tạo gợi ý sửa chính tả, nên lỗi thật đầu tiên vẫn chậm. Đo trên máy dev, lần check tiếng Đức đầu tiên: không nạp sẵn ~12s, câu không lỗi ~4,1s, câu có lỗi ~2,8s (gần mức ổn định ~1,5–2s).
   - Chạy nền khi app khởi động, **không chặn** app khởi động.
   - LanguageTool chưa sẵn sàng thì thử lại với backoff (1s, gấp đôi mỗi lần, tối đa 60s), đến khi nạp xong.
@@ -238,9 +239,10 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
     - Sau khi merge: issue có phương án như vậy → `error` và `intentional_possible = false`, dù Claude đánh mức nào.
   - Thiếu `¿ ¡` → `warning`. Với LanguageTool: match có phương án thêm `¿`/`¡`. (Thử thực tế: LanguageTool thường không bắt lỗi này, chủ yếu dựa vào Claude.)
   - Thiếu dấu làm đổi nghĩa (`TU/TÚ`, `SI/SÍ`, `EL/ÉL`, `MAS/MÁS`) → `error`. Với LanguageTool: `original` là một trong 4 từ này và có phương án chỉ khác ở dấu. Các từ thiếu dấu khác vẫn theo bảng quy đổi (LanguageTool thường báo `misspelling` → `error`).
-- **en-US** (ngôn ngữ phụ)
-  - Slang có chủ đích (`ain't`, `gonna`, `rollin'`) là phong cách, không phải lỗi; gắn `intentional_possible`.
-  - Vẫn phải bắt các lỗi kinh điển: your/you're, its/it's, there/their, `ya'll` → `y'all`, lose/loose.
+- **en-US: không kiểm** (`UNCHECKED_LANGUAGES` trong `lib/languages.ts`).
+  - Claude vẫn nhận diện tiếng Anh (schema giữ giá trị `en-US`), chép lại chữ nhưng được dặn **không báo lỗi**. Lỗi Claude lỡ báo trên block tiếng Anh bị bỏ. LanguageTool không kiểm block này, và block không lấy ngôn ngữ chung của ảnh làm dự phòng.
+  - Ảnh có block tiếng Anh không rỗng (`uncheckedBlocks` trong kết quả) tối thiểu là `warning`, kể cả khi chỉ có chữ tiếng Anh. Dưới block hiện "Chữ tiếng Anh: tool không kiểm, cần xem tay." Có lỗi de/fr/es ở block khác thì ảnh vẫn là `error`.
+  - Từ điển không có ngôn ngữ `en-US`; dòng CSV `en-US` bị báo là dòng lỗi khi nhập.
 - Slogan ngắn thường không có dấu phẩy hay dấu chấm cuối câu: prompt dặn Claude không báo thiếu dấu phẩy/chấm/chấm than (quy tắc `¿ ¡` của es-ES vẫn áp).
 - Thuật ngữ Native American, tên bộ tộc, tên thương hiệu, tên riêng: không bao giờ báo lỗi nếu có trong từ điển.
 
@@ -293,9 +295,10 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
     - de/fr/es: 100% lỗi cố ý nằm ở Lỗi hoặc Nghi ngờ; các ca đánh dấu `must_error` (ANO, FUR, sai giống/số/cách) phải ở Lỗi.
     - "Chữ sau khi sửa" đúng ở mọi ca (không có chữ hỏng như `FU IMMER`, `THE BEST THE BEST`).
     - Trung bình < 15 s/ảnh.
+    - Ảnh chữ tiếng Anh (không kiểm) phải ở Nghi ngờ.
     - Bộ tổng hợp chỉ kiểm logic. **Bộ mockup thật (`test-images/`) phải ĐẠT trước Giai đoạn 6.**
   - `expected.csv`: cột `file,expected_text,has_error[,language][,must_error][,source]`, mẫu ở `docs/expected.example.csv`. Cột `source` ghi nguồn đáp án: `claude-draft` là đáp án Claude Code tự soạn bằng cách đọc ảnh, chưa xác nhận. Còn dòng `claude-draft` thì eval in cảnh báo ở đầu và sau kết luận (kết luận chỉ là tạm thời); thay bằng chữ gốc từ file thiết kế (ví dụ `source = design-file`). Có API key thì gọi Claude thật và ghi vào `usage_daily`; không có key (dev) thì chạy mock.
-  - **Bộ test cố định:** `npm run test-images` tạo 31 mockup áo thun tổng hợp (de/fr/es/en, có lỗi và không lỗi, gồm chữ viết tay mờ, chữ in mòn, chữ nghiêng, PNG nền trong suốt, tag cổ áo, áo trơn) cùng `expected.csv` vào `test-images/synthetic/`, vẽ bằng font Windows nên lần nào cũng giống hệt; ảnh không commit, danh sách ca nằm trong `scripts/generate-test-mockups.ts`. Chạy: `npm run eval -- --dir test-images/synthetic`. Mockup thật đặt ở `test-images/` vẫn cần, vì chữ vẽ từ font dễ đọc hơn ảnh in thật.
+  - **Bộ test cố định:** `npm run test-images` tạo 29 mockup áo thun tổng hợp (de/fr/es, có lỗi và không lỗi, gồm chữ viết tay mờ, chữ in mòn, chữ nghiêng, font máy chữ, PNG nền trong suốt, tag cổ áo tiếng Anh phải bỏ qua, áo trơn; cộng 1 ảnh tiếng Anh phải vào Nghi ngờ) cùng `expected.csv` vào `test-images/synthetic/`, vẽ bằng font Windows nên lần nào cũng giống hệt; ảnh không commit, danh sách ca nằm trong `scripts/generate-test-mockups.ts`. Chạy: `npm run eval -- --dir test-images/synthetic`. Mockup thật đặt ở `test-images/` vẫn cần, vì chữ vẽ từ font dễ đọc hơn ảnh in thật.
 - Trước khi viết code dùng Anthropic SDK hoặc Drizzle, **tra docs hiện hành**.
 - Ngôn ngữ:
   - Text hiển thị cho người dùng viết bằng tiếng Việt.
@@ -328,7 +331,7 @@ Dùng khi chưa có API key hoặc không muốn tốn tiền lúc phát triển
 
 - Bật khi `CLAUDE_MOCK=1`, hoặc tự bật khi thiếu `ANTHROPIC_API_KEY` ở môi trường không phải production. **Production không bao giờ chạy mock:** xem "Khi có sự cố".
 - `/api/analyze` trả kết quả từ `fixtures/claude/*.json` thay vì gọi Claude. LanguageTool vẫn gọi thật.
-- Chọn fixture theo tên file ảnh: file chứa một từ khóa trong `match` của fixture (không phân biệt hoa thường, từ khóa dài nhất thắng; ví dụ `shirt-GONNA_02.jpg` → `gonna`). Không khớp thì chọn giả ngẫu nhiên theo hash tên file, chỉ trong các fixture `pick_randomly: true`. Cùng một file luôn ra cùng một fixture, để "Thử lại" cho kết quả ổn định.
+- Chọn fixture theo tên file ảnh: file chứa một từ khóa trong `match` của fixture (không phân biệt hoa thường, từ khóa dài nhất thắng; ví dụ `shirt-SLANG_02.jpg` → `slang`; `english` cho mẫu chữ tiếng Anh không kiểm). Không khớp thì chọn giả ngẫu nhiên theo hash tên file, chỉ trong các fixture `pick_randomly: true`. Cùng một file luôn ra cùng một fixture, để "Thử lại" cho kết quả ổn định.
 - Mỗi fixture có một chuỗi `responses`: lần gọi thứ N lấy phản hồi thứ N (hết thì lặp phản hồi cuối). Nhờ vậy mock đi qua đúng code retry thật, ví dụ `truncated` bị cắt lần đầu rồi thành công khi retry, còn `invalid-schema` sai schema cả 2 lần nên `failed`.
 - Có độ trễ giả 0,4–1,5s mỗi lần gọi, để hàng đợi và thanh tiến độ chạy giống thật.
 
