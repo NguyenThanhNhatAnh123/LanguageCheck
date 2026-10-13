@@ -289,9 +289,25 @@ Làm Giai đoạn 5:
 - Cần thêm mockup thật **fr-FR và es-ES**, và mockup thật **có lỗi**.
 - Đáp án `test-images/expected.csv` hiện là bản nháp Claude Code soạn từ việc đọc ảnh, cần người xác nhận.
 
-**Cần quyết:**
-- **(a)** Đổi sang Opus 5.5: đạt cả 2 bộ, chậm hơn khoảng 30–40% (vẫn xa ngưỡng 15 s), giá mỗi token cao hơn.
-- **(b)** Giữ Sonnet và thêm quy tắc: lỗi **chính tả** chỉ Claude báo, trên từ mà LanguageTool (đang chạy) chấp nhận, thì tối đa Nghi ngờ. Quy tắc thiếu Ñ vẫn nâng lên Lỗi sau đó. Cách này sửa được ca `WOG` nhưng không sửa ca `DONT`.
+**Đã chọn (b), giữ Sonnet 5.5 + effort `low`:**
+- Lỗi **chính tả** chỉ Claude báo, trên từ mà LanguageTool (đang chạy) chấp nhận, thì tối đa Nghi ngờ, và không áp vào "Chữ sau khi sửa".
+- Ngoại lệ: phương án chỉ khác ở dấu hoặc ký tự đặc biệt (`ANO` → `AÑO`, `TU` → `TÚ`). Các quy tắc ngôn ngữ vẫn ưu tiên.
+- Lỗi ngữ pháp/hợp giống không bị ảnh hưởng. Chi tiết ở CLAUDE.md "Cách tính `status`".
+- **Nếu mockup thật de/fr/es bị đọc sai hoặc báo nhầm nhiều, thử lại Opus 5.5** bằng `CLAUDE_MODEL=claude-opus-5-5` (không cần sửa code). Opus đạt cả 2 bộ ở lần đo 2026-10-13, chậm hơn khoảng 30–40%.
+
+**Kết quả sau quy tắc (b), Sonnet 5.5 effort `low` (2026-10-13):**
+
+| Bộ | de-DE | fr-FR | es-ES | en-US | s/ảnh | Kết luận |
+|---|---|---|---|---|---|---|
+| Thật (8, toàn de-DE) | ĐẠT | — | — | — | 5,3 | **ĐẠT** (tạm thời: đáp án `claude-draft`) |
+| Tổng hợp (31) | ĐẠT | ĐẠT | ĐẠT | TRƯỢT (3) | 3,8 | TRƯỢT (chỉ en-US) |
+
+- `ICH WOG MAL` giờ là Nghi ngờ (`ltAccepted`). Lần này Claude gợi ý `WOG` → `WIEGE` (sai). Phương án đó không được áp, nên "Chữ sau khi sửa" vẫn đúng.
+- de/fr/es trên bộ tổng hợp không đổi: 9/9 lỗi ở Lỗi, kể cả mọi ca `must_error` (`ANO`, `FUR`, `PARFAIT`, `ORGULLOSO`, `CHOSE`, `MEINE HUND`). 0 ảnh đúng bị báo.
+- en-US vẫn trượt tiêu chí 3 ở `DONT LOOSE HOPE`. Claude coi `DONT` là "có thể cố ý" nên ra `DONT LOSE HOPE`. Quy tắc (b) không nhằm sửa ca này. Còn chờ quyết định: thiếu dấu nháy trong tiếng Anh (`DONT`, `CANT`) có luôn là Lỗi không.
+- LanguageTool chạy ở mọi ảnh có chữ (30/30 bộ tổng hợp, 8/8 bộ thật).
+
+**Đáp án bộ thật:** cả 8 dòng đang là `source = claude-draft` (Claude Code soạn từ việc đọc ảnh). Sẽ được thay bằng chữ gốc từ file thiết kế. Eval cảnh báo khi còn dòng `claude-draft`.
 
 ---
 

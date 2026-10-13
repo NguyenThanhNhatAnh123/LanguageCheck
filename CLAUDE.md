@@ -144,6 +144,11 @@ LanguageTool không có severity. Quy đổi theo `rule.issueType` của từng 
 
 Issue `info` vẫn hiện trong thẻ nhưng **không tính vào `status`**.
 
+**Lỗi chính tả LanguageTool chấp nhận** (`applyLtAcceptedSpellingRule()`): issue loại `spelling` **chỉ Claude báo**, trên block mà LanguageTool đã kiểm (`lt_status = "online"` và block có ngôn ngữ riêng rõ ràng) nhưng không có match → tối đa `warning`, gắn `ltAccepted`, **không áp vào "Chữ sau khi sửa"**. Thẻ ghi "LanguageTool coi là đúng, chưa áp vào chữ sửa".
+- Lý do: từ điển của LanguageTool rất chắc về chính tả, còn Claude đôi khi báo nhầm dạng từ đúng nhưng ít gặp (`ICH WOG MAL`: `wog` là quá khứ của `wiegen`).
+- **Ngoại lệ:** không áp khi một phương án chỉ khác `original` ở dấu hoặc ký tự đặc biệt (`differsOnlyBySpecialCharacters()`: `ANO` → `AÑO`, `TU` → `TÚ`, `SI` → `SÍ`, `FUR` → `FÜR`, `ss` → `ß`, thêm `¿ ¡`). LanguageTool chấp nhận `ANO` vì đó là từ có thật; các quy tắc ngôn ngữ quyết định những ca này.
+- Lỗi ngữ pháp, hợp giống, chọn từ… không bị ảnh hưởng.
+
 - `error`: có issue severity `error` được cả 2 nguồn cùng báo, hoặc Claude báo `error` với `intentional_possible = false`
 - `warning`: còn issue `error`/`warning` nào đó mà không đủ điều kiện `error` ở trên, hoặc có issue loại `ocr_uncertain` (kể cả severity `info`). Gồm: issue chỉ 1 nguồn báo, và issue `warning` cả 2 nguồn cùng báo (ví dụ tên riêng `HAIDA`: Claude báo warning có chủ đích, LanguageTool báo misspelling).
 - `ok`: không có issue `error`/`warning` nào. Mockup chỉ có issue `info` cũng là `ok` (nhóm "Không lỗi").
@@ -152,7 +157,7 @@ Issue `info` vẫn hiện trong thẻ nhưng **không tính vào `status`**.
 
 ### Chữ sau khi sửa
 
-Code tự tính cho từng block, Claude không trả trường này. Cách tính: áp phương án đầu tiên (đã chuyển kiểu chữ ở mục trên) của mỗi issue `error`/`warning` có `intentional_possible = false`.
+Code tự tính cho từng block, Claude không trả trường này. Cách tính: áp phương án đầu tiên (đã chuyển kiểu chữ ở mục trên) của mỗi issue `error`/`warning` có `intentional_possible = false`, trừ issue `ltAccepted` (xem "Cách tính `status`").
 
 Các hàm quy đổi, gắn nhãn, merge, xử lý phương án sửa, tính `status` và tính chữ sau khi sửa đặt trong module dùng chung, để client gọi lại được sau khi thêm từ vào từ điển.
 
@@ -289,7 +294,7 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
     - "Chữ sau khi sửa" đúng ở mọi ca (không có chữ hỏng như `FU IMMER`, `THE BEST THE BEST`).
     - Trung bình < 15 s/ảnh.
     - Bộ tổng hợp chỉ kiểm logic. **Bộ mockup thật (`test-images/`) phải ĐẠT trước Giai đoạn 6.**
-  - `expected.csv`: cột `file,expected_text,has_error[,language][,must_error]`, mẫu ở `docs/expected.example.csv`. Có API key thì gọi Claude thật và ghi vào `usage_daily`; không có key (dev) thì chạy mock.
+  - `expected.csv`: cột `file,expected_text,has_error[,language][,must_error][,source]`, mẫu ở `docs/expected.example.csv`. Cột `source` ghi nguồn đáp án: `claude-draft` là đáp án Claude Code tự soạn bằng cách đọc ảnh, chưa xác nhận. Còn dòng `claude-draft` thì eval in cảnh báo ở đầu và sau kết luận (kết luận chỉ là tạm thời); thay bằng chữ gốc từ file thiết kế (ví dụ `source = design-file`). Có API key thì gọi Claude thật và ghi vào `usage_daily`; không có key (dev) thì chạy mock.
   - **Bộ test cố định:** `npm run test-images` tạo 31 mockup áo thun tổng hợp (de/fr/es/en, có lỗi và không lỗi, gồm chữ viết tay mờ, chữ in mòn, chữ nghiêng, PNG nền trong suốt, tag cổ áo, áo trơn) cùng `expected.csv` vào `test-images/synthetic/`, vẽ bằng font Windows nên lần nào cũng giống hệt; ảnh không commit, danh sách ca nằm trong `scripts/generate-test-mockups.ts`. Chạy: `npm run eval -- --dir test-images/synthetic`. Mockup thật đặt ở `test-images/` vẫn cần, vì chữ vẽ từ font dễ đọc hơn ảnh in thật.
 - Trước khi viết code dùng Anthropic SDK hoặc Drizzle, **tra docs hiện hành**.
 - Ngôn ngữ:
