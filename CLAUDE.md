@@ -3,7 +3,7 @@
 Tool nội bộ cho team POD: tải lên hàng loạt mockup → đọc chữ trên ảnh → kiểm tra chính tả/ngữ pháp bằng 2 nguồn (LanguageTool + Claude API) → **chỉ hiển thị mockup có lỗi**, kèm lỗi ở đâu và sửa thế nào → đóng phiên là mất hết.
 
 - Volume: 400–1000 ảnh/ngày, mỗi lượt vài chục ảnh, có thể nhiều người dùng cùng lúc.
-- Ngôn ngữ chữ trên ảnh: `en-US`, `de-DE`, `fr-FR`, `es-ES`.
+- Ngôn ngữ chữ trên ảnh: chủ yếu `de-DE`, `fr-FR`, `es-ES`; `en-US` là phụ.
 - Ngôn ngữ giao diện và giải thích lỗi: **tiếng Việt**.
 - Kế hoạch từng giai đoạn: `PLAN.md`. Làm đúng thứ tự; giai đoạn trước chạy được mới sang giai đoạn sau.
 
@@ -94,6 +94,7 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
     | `duplication` | Lặp từ |
     | `typographical` | Lỗi dấu câu/trình bày |
     | còn lại | Cần xem lại |
+- Phương án đầu tiên thêm ký tự đặc biệt mà `original` không có (chữ có dấu như `Ä Ö Ü ß É È Ç Ñ`, và `¿ ¡`; `addedSpecialCharacters()`) → thêm dòng nhắc "Nếu font không có ký tự này (Ü), hãy đổi font." Font thiếu ký tự là lý do hay gặp khiến dấu bị mất.
 - "Chữ sau khi sửa" của cả block, có nút copy.
 - Nút "Thêm vào từ điển" cho từ bị báo nhầm. Từ được lưu ngay, và các mockup còn lại trong phiên được lọc lại ở client (tính lại `status` và "Chữ sau khi sửa").
   - Chỉ hiện với **lỗi chính tả** (loại mà từ điển áp dụng, xem bước 3 "Lọc và quy đổi"), khi biết ngôn ngữ của block, và không hiện cho chỗ đọc không rõ (`[?]`, `ocr_uncertain`).
@@ -128,6 +129,7 @@ LanguageTool không có severity. Quy đổi theo `rule.issueType` của từng 
 
 Áp cho mọi issue: của Claude, của LanguageTool hay đã gộp.
 
+0. **Cắt phần lặp lại chữ xung quanh** (`trimSuggestionContext()`). Phương án chỉ thay đúng vùng chữ của issue (prompt cũng dặn vậy), nhưng model đôi khi viết cả cụm (`FREIND` → `BEST FRIEND` trong `BEST FREIND`), áp vào sẽ lặp chữ. Các từ đầu phương án trùng với các từ ngay trước vùng chữ, và các từ cuối trùng với các từ ngay sau, bị cắt (không phân biệt hoa thường, giữ ít nhất 1 từ). Cắt xong mà giống `original` thì phương án bị bỏ ở bước 2.
 1. **Chuyển từng phương án về đúng kiểu chữ của `original`.** Chỉ xét chữ cái, bỏ qua số và dấu câu.
    - `original` in hoa toàn bộ → phương án in hoa toàn bộ (`YOUR` → `YOU'RE`).
    - `original` viết hoa chữ đầu, còn lại thường → phương án viết hoa chữ đầu, còn lại thường (`Your` → `You're`).
@@ -205,12 +207,17 @@ Lần gọi đầu tiên cho mỗi ngôn ngữ sau khi LanguageTool khởi độ
 
 Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ngắn, hay có slang. Với kết quả LanguageTool, các quy tắc này đứng trên bảng quy đổi severity.
 
-- **en-US**
-  - Slang có chủ đích (`ain't`, `gonna`, `rollin'`) là phong cách, không phải lỗi; gắn `intentional_possible`.
-  - Vẫn phải bắt các lỗi kinh điển: your/you're, its/it's, there/their, `ya'll` → `y'all`, lose/loose.
+**Lỗi ưu tiên** (prompt yêu cầu Claude soát mọi block, vì LanguageTool không thấy: từng từ vẫn đúng chính tả):
+- fr-FR, es-ES: hợp giống/số giữa danh từ, mạo từ, tính từ (`MAMAN PARFAIT` → `PARFAITE`, `ABUELA ORGULLOSO` → `ORGULLOSA`).
+- de-DE: đuôi tính từ và mạo từ theo giống/cách (`DER BESTER OPA` → `DER BESTE OPA`, `MEINE HUND` → `MEINEN HUND`).
+- Ví dụ trong prompt cố ý **khác** với câu trong bộ test cố định, để eval đo khả năng thật chứ không phải trí nhớ ví dụ.
+
 - **de-DE**
   - Chữ in hoa toàn bộ: bỏ qua quy tắc viết hoa danh từ. `SS` thay cho `ß` là hợp lệ.
     - Với LanguageTool, áp khi cả block in hoa toàn bộ: bỏ match thuộc category `CASING`, và bỏ match có phương án cùng `word_key` với `original` (tức chỉ khác hoa/thường hoặc `ß`/`ss`).
+  - `AE`/`OE`/`UE` thay cho `Ä`/`Ö`/`Ü` (`FUER`, `MUETTER`) là cách viết hợp lệ, **không báo lỗi**, chữ hoa hay thường đều vậy. Chỉ mất hẳn umlaut (`FUR`) mới là lỗi.
+    - LanguageTool: bỏ match có phương án là dạng có umlaut của `original` (`isUmlautSpelledOut()`).
+    - Sau khi merge: bỏ issue (của bất kỳ nguồn nào) có phương án như vậy. Bỏ luôn lỗi chính tả **chỉ LanguageTool báo** trên từ có `AE`/`OE`/`UE`, vì LanguageTool hay báo `FUER` mà không gợi ý `FÜR` (chỉ có `FU`, `VFR`). Nếu Claude cũng báo cùng chỗ thì giữ theo Claude.
   - Vẫn phải bắt: sai đuôi từ, sai giống hoặc cách, mất umlaut (`FUR` → `FÜR`).
 - **fr-FR**
   - Thiếu dấu trên chữ in hoa (`ETE` thay vì `ÉTÉ`) → `info`.
@@ -220,8 +227,16 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
   - Thiếu dấu cách trước `! ? : ;` → `info`. Với LanguageTool: match có phương án chỉ khác `original` ở khoảng trắng.
   - Vẫn phải bắt: sai hợp giống/số, sai dấu trên chữ thường.
 - **es-ES**
+  - Thiếu `Ñ` → `error`, không bao giờ là cố ý (`FELIZ ANO NUEVO` → `AÑO`, `CUMPLEANOS` → `CUMPLEAÑOS`).
+    - LanguageTool không bắt được `ANO` vì đó là từ có thật; Claude phải bắt theo ngữ cảnh.
+    - LanguageTool: match có phương án chỉ thêm dấu ngã cho `n` (`isMissingEnye()`) → `error`.
+    - Sau khi merge: issue có phương án như vậy → `error` và `intentional_possible = false`, dù Claude đánh mức nào.
   - Thiếu `¿ ¡` → `warning`. Với LanguageTool: match có phương án thêm `¿`/`¡`. (Thử thực tế: LanguageTool thường không bắt lỗi này, chủ yếu dựa vào Claude.)
   - Thiếu dấu làm đổi nghĩa (`TU/TÚ`, `SI/SÍ`, `EL/ÉL`, `MAS/MÁS`) → `error`. Với LanguageTool: `original` là một trong 4 từ này và có phương án chỉ khác ở dấu. Các từ thiếu dấu khác vẫn theo bảng quy đổi (LanguageTool thường báo `misspelling` → `error`).
+- **en-US** (ngôn ngữ phụ)
+  - Slang có chủ đích (`ain't`, `gonna`, `rollin'`) là phong cách, không phải lỗi; gắn `intentional_possible`.
+  - Vẫn phải bắt các lỗi kinh điển: your/you're, its/it's, there/their, `ya'll` → `y'all`, lose/loose.
+- Slogan ngắn thường không có dấu phẩy hay dấu chấm cuối câu: prompt dặn Claude không báo thiếu dấu phẩy/chấm/chấm than (quy tắc `¿ ¡` của es-ES vẫn áp).
 - Thuật ngữ Native American, tên bộ tộc, tên thương hiệu, tên riêng: không bao giờ báo lỗi nếu có trong từ điển.
 
 ## Giao diện
@@ -267,8 +282,9 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
 - Unit test bằng Vitest (`npm test`), file `*.test.ts` đặt cạnh code. Test cần DB thì dùng SQLite in-memory dựng từ migration thật.
 - `npm run eval [-- --dir <thư mục>]`: chạy mọi ảnh trong `test-images/expected.csv` qua đúng pipeline của `/api/analyze` (hàm dùng chung `analyzeMockup()` trong `lib/analysis/analyze-mockup.ts`).
   - Ảnh được thu nhỏ giống trình duyệt bằng `sharp` (devDependency).
-  - In tỉ lệ bắt đúng và báo nhầm (tính "Lỗi + Nghi ngờ", và chỉ "Lỗi"), cùng tỉ lệ "Chữ sau khi sửa" khớp đáp án. Lưu kết quả vào `<thư mục>/eval-results/<thời điểm>.json`.
-  - `expected.csv`: cột `file,expected_text,has_error`, mẫu ở `docs/expected.example.csv`. Có API key thì gọi Claude thật và ghi vào `usage_daily`; không có key (dev) thì chạy mock.
+  - In tỉ lệ bắt đúng và báo nhầm (tính "Lỗi + Nghi ngờ", và chỉ "Lỗi"), cùng tỉ lệ "Chữ sau khi sửa" khớp đáp án, **tổng và tách theo từng ngôn ngữ**, kèm thời gian và token trung bình mỗi ảnh. `--verbose` in thêm chữ đọc được và các lỗi. Lưu kết quả vào `<thư mục>/eval-results/<thời điểm>.json`.
+  - `expected.csv`: cột `file,expected_text,has_error[,language]`, mẫu ở `docs/expected.example.csv`. Có API key thì gọi Claude thật và ghi vào `usage_daily`; không có key (dev) thì chạy mock.
+  - **Bộ test cố định:** `npm run test-images` tạo 31 mockup áo thun tổng hợp (de/fr/es/en, có lỗi và không lỗi, gồm chữ viết tay mờ, chữ in mòn, chữ nghiêng, PNG nền trong suốt, tag cổ áo, áo trơn) cùng `expected.csv` vào `test-images/synthetic/`, vẽ bằng font Windows nên lần nào cũng giống hệt; ảnh không commit, danh sách ca nằm trong `scripts/generate-test-mockups.ts`. Chạy: `npm run eval -- --dir test-images/synthetic`. Mockup thật đặt ở `test-images/` vẫn cần, vì chữ vẽ từ font dễ đọc hơn ảnh in thật.
 - Trước khi viết code dùng Anthropic SDK hoặc Drizzle, **tra docs hiện hành**.
 - Ngôn ngữ:
   - Text hiển thị cho người dùng viết bằng tiếng Việt.

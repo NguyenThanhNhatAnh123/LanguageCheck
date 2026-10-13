@@ -131,6 +131,28 @@ Tra docs Anthropic SDK hiện hành (vision, tool use / structured outputs, prom
    - Theo dõi log `[claude] output invalid` và `output still truncated`: bao nhiêu % ảnh phải retry vì sai schema hoặc bị cắt ở `max_tokens` 3000 (thinking cũng tính vào `max_tokens`). Tỉ lệ cao thì tăng `max_tokens` hoặc giảm effort.
 5. Kiểm tra `usage_daily` có tăng đúng số ảnh và token sau khi chạy.
 
+**Kết quả với API key thật (2026-10-13), bộ test cố định 31 ảnh** (`npm run test-images`, rồi `npm run eval -- --dir test-images/synthetic`):
+
+| Cấu hình | Bắt lỗi | Báo nhầm (xếp Lỗi) | Chữ sau khi sửa đúng | Thời gian/ảnh | Token ra/ảnh |
+|---|---|---|---|---|---|
+| **Sonnet 5.5, effort low** | 15/15 | 1/16 (0) | 29/30 | 3,6 s | 273 |
+| Sonnet 5.5, effort medium | 15/15 | 1/16 (0) | 29/30 | 3,7 s | 285 |
+| Haiku 5.5, effort low | 15/15 | 1/15 (**1**) | 27/29 | 3,5 s | 371 |
+
+- **Theo ngôn ngữ (Sonnet low):** de-DE, fr-FR, es-ES đều 100% (bắt đúng, không báo nhầm, chữ sửa khớp). en-US: báo nhầm `HAIDA` ở mức Nghi ngờ (tên riêng chưa có trong từ điển, đúng spec); `DONT` thiếu dấu nháy được coi là "có thể cố ý" nên không áp vào "Chữ sau khi sửa".
+- **Haiku:**
+  - Xếp **Lỗi** cho `¡FELIZ CUMPLEAÑOS!` (đúng chính tả).
+  - Viết phương án lấn sang từ bên cạnh mà code không cắt được: `MEINE HUND` → `MEINE MEINEN HUND`.
+  - Một ảnh sai schema 2 lần nên thất bại.
+- **Opus 5.5** (thử 8 ảnh khó, prompt cũ): không hơn Sonnet, chậm hơn.
+- **Đã chọn Sonnet 5.5 + effort `low`.** Không chia model theo độ khó: Haiku sai ở cả ảnh dễ, Opus không cải thiện ảnh khó, và muốn phân loại thì phải gọi thêm một lượt cho mỗi ảnh.
+- **Các mục khác:**
+  - API chấp nhận schema, `fallbacks` và `effort`. Không có lần nào sai schema hay bị cắt ở `max_tokens` với Sonnet.
+  - Cache có tác dụng: khoảng 2.900 token đọc cache mỗi ảnh, cộng 1.140 token vào và khoảng 270 token ra.
+  - `usage_daily` ghi đúng số ảnh và token theo từng model.
+  - Đường đi qua giao diện (`/api/analyze`) chạy đúng.
+- **Còn thiếu:** chạy lại với **mockup thật** (chữ in và ảnh chụp khó đọc hơn chữ vẽ từ font), đặt trong `test-images/` kèm `expected.csv`.
+
 ---
 
 ## Giai đoạn 3 — Ghép LanguageTool + merge + quy tắc ngôn ngữ
@@ -276,7 +298,7 @@ Làm Giai đoạn 6:
 
 Làm sau khi tool đã chạy ổn định. Mục đích là để LanguageTool bắt thêm lỗi dùng sai từ.
 
-1. Tải gói n-gram cho `en`, `de`, `fr`, `es` từ `https://languagetool.org/download/ngram-data/`, giải nén vào `C:\LanguageTool\ngrams\` (mỗi ngôn ngữ một thư mục con). Cần trống khoảng 30–40GB, nên đặt trên SSD.
+1. Tải gói n-gram **chỉ cho `de`, `fr`, `es`** từ `https://languagetool.org/download/ngram-data/`, giải nén vào `C:\LanguageTool\ngrams\` (mỗi ngôn ngữ một thư mục con `de`, `fr`, `es`). Đây là 3 ngôn ngữ chính của tool. Bỏ `en`: tiếng Anh là phụ mà gói `en` lại lớn nhất. Xem dung lượng từng gói trên trang tải trước khi tải; nên đặt trên SSD.
 2. Tạo file `C:\LanguageTool\LanguageTool-6.x\server.properties` với nội dung `languageModel=C:\\LanguageTool\\ngrams`.
 3. Thêm `--config server.properties` vào tham số service (`nssm edit LanguageTool`), rồi chạy `nssm restart LanguageTool`.
 4. Chạy lại `npm run eval` và so với kết quả cũ.
