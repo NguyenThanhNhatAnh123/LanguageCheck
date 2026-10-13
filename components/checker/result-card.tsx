@@ -12,6 +12,11 @@ function asLanguage(value: string): Language | null {
   return isLanguage(value) ? value : null;
 }
 
+/** "Tiếng Anh" → "tiếng Anh", for use mid-sentence. */
+function lowerFirst(label: string): string {
+  return label.charAt(0).toLocaleLowerCase("vi") + label.slice(1);
+}
+
 export function ResultCard({ name, objectUrl, result }: { name: string; objectUrl: string; result: AnalysisResult }) {
   const blocks = result.blocks.filter((block) => block.text.trim().length > 0);
 
@@ -38,7 +43,7 @@ export function ResultCard({ name, objectUrl, result }: { name: string; objectUr
               {isUncheckedLanguage(block.language) && (
                 <p className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400" data-testid="unchecked-language">
                   <EyeIcon className="size-4 shrink-0" aria-hidden />
-                  Chữ {UNCHECKED_LANGUAGE_LABELS[block.language].toLocaleLowerCase("vi")}: tool không kiểm, cần xem tay.
+                  Chữ {lowerFirst(UNCHECKED_LANGUAGE_LABELS[block.language])}: tool không kiểm, cần xem tay.
                 </p>
               )}
               {issues.length > 0 && (
