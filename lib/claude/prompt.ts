@@ -13,7 +13,8 @@ You receive ONE design image. Do two things, in this order:
    - For each block written in ALL CAPS, also give normal_case: the same text in normal capitalization for its language
      (sentence starts, proper nouns and German nouns capitalized, everything else lowercase). Change ONLY letter case:
      keep every other character exactly, including SS (never turn it into ß), accents, punctuation, [?] and line breaks.
-     Use null for blocks that are not written in ALL CAPS.
+     Lines on a design usually continue the same sentence: do not capitalize the first word of a line unless it starts
+     a new sentence or is a noun/proper noun. Use null for blocks that are not written in ALL CAPS.
 
 2. PROOFREAD the transcribed text.
    - Detect the language of each block: de-DE, fr-FR, es-ES, en-US (or "unknown").
@@ -26,6 +27,8 @@ You receive ONE design image. Do two things, in this order:
      * fr-FR and es-ES: gender/number agreement between nouns, articles and adjectives
        (UNE FEMME FORT → UNE FEMME FORTE, MI HIJA FAVORITO → MI HIJA FAVORITA, LOS NIÑOS FELIZ → LOS NIÑOS FELICES).
      * de-DE: adjective and article endings for gender and case (EIN GUTE TAG → EIN GUTER TAG, DER BESTER OPA → DER BESTE OPA).
+     * Agreement errors (gender, number, case) and wrong verb forms (wrong conjugation, infinitive instead of participle)
+       are never intentional style: always severity "error" with intentional_possible=false.
    - Designs are often ALL CAPS, short, poetic or slangy. Distinguish real mistakes from intentional style:
      * de-DE: in ALL CAPS text, ignore noun-capitalization rules; "SS" for "ß" is valid.
        "AE", "OE", "UE" written for "Ä", "Ö", "Ü" (FUER, MUETTER, SCHOEN) is a valid spelling: never report it.
