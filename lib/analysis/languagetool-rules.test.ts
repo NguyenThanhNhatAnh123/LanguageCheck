@@ -3,6 +3,7 @@ import type { ClaudeBlock } from "@/lib/claude/schema";
 import {
   applyLtLanguageRules,
   groupBlocksByLanguage,
+  languageToolText,
   ltLabelVi,
   ltSeverity,
   mapMatchToBlock,
@@ -10,12 +11,13 @@ import {
 } from "./languagetool-rules";
 import type { LtBlockMatch } from "./types";
 
-const block = (index: number, text: string, language: ClaudeBlock["language"]): ClaudeBlock => ({
+const block = (index: number, text: string, language: ClaudeBlock["language"], normalCase: string | null = null): ClaudeBlock => ({
   index,
   text,
   role: "headline",
   language,
   legibility: "clear",
+  normal_case: normalCase,
 });
 
 const raw = (offset: number, length: number, issueType = "misspelling", replacements: string[] = []): RawLtMatch => ({
@@ -42,6 +44,29 @@ describe("groupBlocksByLanguage", () => {
     expect(groups[0].segments).toEqual([
       { blockIndex: 0, start: 0, end: 12 },
       { blockIndex: 2, start: 13, end: 24 },
+    ]);
+  });
+});
+
+describe("languageToolText (Claude's normal_case for ALL CAPS blocks)", () => {
+  it("uses normal_case when only the letter case differs", () => {
+    expect(languageToolText(block(0, "ICH LIEBE MEINE HUND", "de-DE", "Ich liebe meine Hund"), "de-DE")).toBe("Ich liebe meine Hund");
+    expect(languageToolText(block(0, "MAMAN\nPARFAIT", "fr-FR", "Maman\nparfait"), "fr-FR")).toBe("Maman\nparfait");
+  });
+
+  it("falls back to the transcription otherwise (null, other letters, other length)", () => {
+    expect(languageToolText(block(0, "ICH LIEBE MEINE HUND", "de-DE"), "de-DE")).toBe("ICH LIEBE MEINE HUND");
+    expect(languageToolText(block(0, "DIE GROSSE STRASSE", "de-DE", "Die große Straße"), "de-DE")).toBe("DIE GROSSE STRASSE");
+    expect(languageToolText(block(0, "MEINE HUND", "de-DE", "Meinen Hund"), "de-DE")).toBe("MEINE HUND");
+    expect(languageToolText(block(0, "ABUELA ORGULLOSO", "es-ES", "Abuela orgullosa"), "es-ES")).toBe("ABUELA ORGULLOSO");
+  });
+
+  it("groups the normal-case text with the same offsets", () => {
+    const [group] = groupBlocksByLanguage([block(0, "EL MEJOR\nMAMÁ", "es-ES", "El mejor\nmamá"), block(1, "TE QUIERO", "es-ES", "Te quiero")]);
+    expect(group.text).toBe("El mejor\nmamá\nTe quiero");
+    expect(group.segments).toEqual([
+      { blockIndex: 0, start: 0, end: 13 },
+      { blockIndex: 1, start: 14, end: 23 },
     ]);
   });
 });
@@ -138,6 +163,18 @@ describe("applyLtLanguageRules", () => {
   it("es-ES: a missing Ñ is an error whatever LanguageTool calls it", () => {
     const b = block(0, "FELIZ CUMPLEANOS", "es-ES");
     expect(applyLtLanguageRules(match(6, 16, { issueType: "uncategorized", replacements: ["CUMPLEAÑOS"] }), b, "es-ES")).toEqual({ action: "keep", severity: "error" });
+  });
+
+  it("drops missing-comma matches (slogans usually have no commas)", () => {
+    const fr = block(0, "JE NE SUIS PAS TÊTU J'AI JUSTE RAISON", "fr-FR");
+    expect(applyLtLanguageRules(match(19, 22, { issueType: "uncategorized", ruleId: "VIRG_NON_TROUVEE", categoryId: "PONCTUATION_VIRGULE", replacements: [", J'"] }), fr, "fr-FR")).toEqual({ action: "drop" });
+    const de = block(0, "ICH BIN NICHT STUR ICH HABE NUR", "de-DE");
+    expect(applyLtLanguageRules(match(4, 27, { issueType: "uncategorized", ruleId: "KOMMA_ZWISCHEN_HAUPT_UND_NEBENSATZ", categoryId: "HILFESTELLUNG_KOMMASETZUNG" }), de, "de-DE")).toEqual({ action: "drop" });
+  });
+
+  it("keeps ¿ ¡ and missing-space matches, which are not about commas", () => {
+    expect(applyLtLanguageRules(match(0, 3, { issueType: "typographical", replacements: ["¿QUE"] }), block(0, "QUE PASA?", "es-ES"), "es-ES")).toEqual({ action: "keep", severity: "warning" });
+    expect(applyLtLanguageRules(match(13, 14, { issueType: "grammar", replacements: [" !"] }), block(0, "Bonne journée!", "fr-FR"), "fr-FR")).toEqual({ action: "keep", severity: "info" });
   });
 
   it("drops matches on Claude's [?] placeholder", () => {

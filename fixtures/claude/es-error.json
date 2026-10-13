@@ -10,8 +10,8 @@
         "has_text": true,
         "language": "es-ES",
         "blocks": [
-          { "index": 0, "text": "TU ERES\nMI VIDA", "role": "headline", "language": "es-ES", "legibility": "clear" },
-          { "index": 1, "text": "TE QUIERO MAS", "role": "body", "language": "es-ES", "legibility": "clear" }
+          { "index": 0, "text": "TU ERES\nMI VIDA", "role": "headline", "language": "es-ES", "legibility": "clear", "normal_case": null },
+          { "index": 1, "text": "TE QUIERO MAS", "role": "body", "language": "es-ES", "legibility": "clear", "normal_case": null }
         ],
         "issues": [
           {

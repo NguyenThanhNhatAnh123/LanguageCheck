@@ -28,6 +28,12 @@ const claudeBlockSchema = z.object({
   role: z.enum(["headline", "body", "small", "signature"]),
   language: z.enum(BLOCK_LANGUAGES),
   legibility: z.enum(["clear", "partial", "unclear"]),
+  /**
+   * Same text in normal capitalization (German nouns capitalized), only letter case changed;
+   * null when the block is not ALL CAPS. LanguageTool checks this version: it misses most
+   * agreement errors in ALL CAPS text. Used only if it really differs from text by case alone.
+   */
+  normal_case: z.string().nullable(),
 });
 
 const claudeSuggestionSchema = z.object({

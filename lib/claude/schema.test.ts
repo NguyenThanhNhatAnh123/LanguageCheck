@@ -5,7 +5,7 @@ import { parseClaudeAnalysis } from "./schema";
 const valid = {
   has_text: true,
   language: "en-US",
-  blocks: [{ index: 0, text: "YOUR THE BEST", role: "headline", language: "en-US", legibility: "clear" }],
+  blocks: [{ index: 0, text: "YOUR THE BEST", role: "headline", language: "en-US", legibility: "clear", normal_case: null }],
   issues: [
     {
       block_index: 0,

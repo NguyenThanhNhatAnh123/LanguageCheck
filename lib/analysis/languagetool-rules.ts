@@ -17,7 +17,19 @@ export interface LanguageGroup {
   segments: Array<{ blockIndex: number; start: number; end: number }>;
 }
 
-/** One group per language present; "unknown" blocks are skipped (Claude only). */
+/**
+ * The text LanguageTool checks for a block: Claude's `normal_case` version when it differs
+ * from the transcription by letter case only (same length and same letters, so offsets map
+ * 1:1), otherwise the transcription itself. LanguageTool misses most agreement errors in ALL
+ * CAPS text (MEINE HUND, PARFAIT, ORGULLOSO) and catches them in normal case.
+ */
+export function languageToolText(block: ClaudeBlock, language: Language): string {
+  const normal = block.normal_case;
+  if (normal === null || normal === block.text || normal.length !== block.text.length) return block.text;
+  return normal.toLocaleLowerCase(language) === block.text.toLocaleLowerCase(language) ? normal : block.text;
+}
+
+/** One group per language present; "unknown" and English blocks are skipped (Claude only). */
 export function groupBlocksByLanguage(blocks: readonly ClaudeBlock[]): LanguageGroup[] {
   return LANGUAGES.flatMap((language) => {
     const members = blocks.filter((block) => block.language === language && block.text.length > 0);
@@ -28,7 +40,7 @@ export function groupBlocksByLanguage(blocks: readonly ClaudeBlock[]): LanguageG
       segments.push({ blockIndex: block.index, start: cursor, end: cursor + block.text.length });
       cursor += block.text.length + 1; // "\n" separator
     }
-    return [{ language, text: members.map((block) => block.text).join("\n"), segments }];
+    return [{ language, text: members.map((block) => languageToolText(block, language)).join("\n"), segments }];
   });
 }
 
@@ -107,6 +119,20 @@ const ES_MEANING_ACCENT_WORDS = new Set(["tu", "si", "el", "mas"]);
 
 export type LtRuleOutcome = { action: "drop" } | { action: "keep"; severity: Severity };
 
+/** Comma rules (de KOMMA…, fr VIRG…/VIRGULE, es COMA, generic COMMA) in rule or category ids. */
+const COMMA_RULE = /KOMMA|COMMA|VIRG|(^|_)COMA(_|$)/;
+
+/**
+ * A missing-comma match: a suggestion that only adds commas (" j'" → ", j'"), or a comma rule
+ * without suggestions (KOMMA_ZWISCHEN_HAUPT_UND_NEBENSATZ just says "insert a comma here").
+ */
+function isMissingCommaMatch(match: LtBlockMatch, original: string): boolean {
+  const withoutCommas = (text: string) => text.replace(/[,\s]/g, "");
+  const commas = (text: string) => (text.match(/,/g) ?? []).length;
+  if (match.replacements.some((r) => withoutCommas(r) === withoutCommas(original) && commas(r) > commas(original))) return true;
+  return match.replacements.length === 0 && (COMMA_RULE.test(match.ruleId) || COMMA_RULE.test(match.categoryId ?? ""));
+}
+
 export function applyLtLanguageRules(match: LtBlockMatch, block: ClaudeBlock, language: Language): LtRuleOutcome {
   const original = block.text.slice(match.start, match.end);
   const severity = ltSeverity(match.issueType);
@@ -114,6 +140,10 @@ export function applyLtLanguageRules(match: LtBlockMatch, block: ClaudeBlock, la
   // "[?]" marks a letter Claude could not read; that uncertainty is Claude's ocr_uncertain
   // issue, so LanguageTool's opinion on the placeholder is noise.
   if (original.includes("[?]")) return { action: "drop" };
+
+  // Short slogans usually have no commas (the prompt tells Claude the same). LanguageTool
+  // flags many missing commas once it checks the normal-case text: drop them.
+  if (isMissingCommaMatch(match, original)) return { action: "drop" };
 
   switch (language) {
     case "de-DE":

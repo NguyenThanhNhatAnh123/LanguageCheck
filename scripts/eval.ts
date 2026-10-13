@@ -63,6 +63,8 @@ function printVerbose(response: AnalyzeApiResponse): void {
   if (!response.ok) return;
   console.log(`      LanguageTool: ${response.result.ltStatus}`);
   for (const block of response.result.blocks) {
+    const sentToLt = response.input.claude.blocks[block.index]?.normal_case;
+    if (sentToLt) console.log(`      (bản chữ thường cho LanguageTool: ${JSON.stringify(sentToLt)})`);
     const corrected = block.correctedText !== block.text ? `  →  ${JSON.stringify(block.correctedText)}` : "";
     console.log(`      [${block.language}] ${JSON.stringify(block.text)}${corrected}`);
   }

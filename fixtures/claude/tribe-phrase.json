@@ -10,7 +10,7 @@
         "has_text": true,
         "language": "de-DE",
         "blocks": [
-          { "index": 0, "text": "HAIDA NATION STOLZ", "role": "headline", "language": "de-DE", "legibility": "clear" }
+          { "index": 0, "text": "HAIDA NATION STOLZ", "role": "headline", "language": "de-DE", "legibility": "clear", "normal_case": null }
         ],
         "issues": [
           {

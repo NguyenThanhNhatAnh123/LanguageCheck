@@ -10,7 +10,7 @@
         "has_text": true,
         "language": "fr-FR",
         "blocks": [
-          { "index": 0, "text": "VIVE L'ETE", "role": "headline", "language": "fr-FR", "legibility": "clear" }
+          { "index": 0, "text": "VIVE L'ETE", "role": "headline", "language": "fr-FR", "legibility": "clear", "normal_case": null }
         ],
         "issues": [
           {

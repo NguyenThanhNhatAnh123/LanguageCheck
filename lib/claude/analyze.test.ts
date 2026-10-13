@@ -11,7 +11,7 @@ import {
 const VALID_TEXT = JSON.stringify({
   has_text: true,
   language: "en-US",
-  blocks: [{ index: 0, text: "HELLO", role: "headline", language: "en-US", legibility: "clear" }],
+  blocks: [{ index: 0, text: "HELLO", role: "headline", language: "en-US", legibility: "clear", normal_case: null }],
   issues: [],
   notes_vi: null,
 });

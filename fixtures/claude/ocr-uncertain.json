@@ -10,8 +10,8 @@
         "has_text": true,
         "language": "de-DE",
         "blocks": [
-          { "index": 0, "text": "GEBOREN ZUM F[?]HREN", "role": "headline", "language": "de-DE", "legibility": "partial" },
-          { "index": 1, "text": "FREIHEIT MOTORRADCLUB", "role": "small", "language": "de-DE", "legibility": "clear" }
+          { "index": 0, "text": "GEBOREN ZUM F[?]HREN", "role": "headline", "language": "de-DE", "legibility": "partial", "normal_case": null },
+          { "index": 1, "text": "FREIHEIT MOTORRADCLUB", "role": "small", "language": "de-DE", "legibility": "clear", "normal_case": null }
         ],
         "issues": [
           {

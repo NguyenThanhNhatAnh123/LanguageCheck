@@ -12,7 +12,7 @@ function analysis(language: Language, texts: string[], issues: Array<Partial<Cla
   return {
     has_text: true,
     language,
-    blocks: texts.map((text, index) => ({ index, text, role: "headline", language, legibility: "clear" })),
+    blocks: texts.map((text, index) => ({ index, text, role: "headline", language, legibility: "clear", normal_case: null })),
     issues: issues.map((issue) => ({
       block_index: 0,
       occurrence: null,

@@ -10,9 +10,9 @@
         "has_text": true,
         "language": "mixed",
         "blocks": [
-          { "index": 0, "text": "¡Hola! ¿Qué tal, señorita?", "role": "headline", "language": "es-ES", "legibility": "clear" },
-          { "index": 1, "text": "Grüsse aus der Straße", "role": "body", "language": "de-DE", "legibility": "clear" },
-          { "index": 2, "text": "Élégance à la française", "role": "small", "language": "fr-FR", "legibility": "clear" }
+          { "index": 0, "text": "¡Hola! ¿Qué tal, señorita?", "role": "headline", "language": "es-ES", "legibility": "clear", "normal_case": null },
+          { "index": 1, "text": "Grüsse aus der Straße", "role": "body", "language": "de-DE", "legibility": "clear", "normal_case": null },
+          { "index": 2, "text": "Élégance à la française", "role": "small", "language": "fr-FR", "legibility": "clear", "normal_case": null }
         ],
         "issues": [
           {

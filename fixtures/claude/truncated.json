@@ -14,7 +14,7 @@
         "has_text": true,
         "language": "de-DE",
         "blocks": [
-          { "index": 0, "text": "DAS LEBEN IST SCHÖNER\nAM SEE", "role": "headline", "language": "de-DE", "legibility": "clear" }
+          { "index": 0, "text": "DAS LEBEN IST SCHÖNER\nAM SEE", "role": "headline", "language": "de-DE", "legibility": "clear", "normal_case": null }
         ],
         "issues": [],
         "notes_vi": null

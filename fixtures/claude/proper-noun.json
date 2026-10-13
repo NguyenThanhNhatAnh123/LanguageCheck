@@ -10,8 +10,8 @@
         "has_text": true,
         "language": "de-DE",
         "blocks": [
-          { "index": 0, "text": "STOLZ AUF HAIDA", "role": "headline", "language": "de-DE", "legibility": "clear" },
-          { "index": 1, "text": "INDIGENES ERBE", "role": "small", "language": "de-DE", "legibility": "clear" }
+          { "index": 0, "text": "STOLZ AUF HAIDA", "role": "headline", "language": "de-DE", "legibility": "clear", "normal_case": null },
+          { "index": 1, "text": "INDIGENES ERBE", "role": "small", "language": "de-DE", "legibility": "clear", "normal_case": null }
         ],
         "issues": [
           {

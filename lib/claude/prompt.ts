@@ -10,6 +10,10 @@ You receive ONE design image. Do two things, in this order:
    - Group text into blocks by visual position (headline, body, small print, signature/brand).
    - If a letter is unreadable because of the font or artwork, write [?] in its place. Never guess silently.
    - Ignore text that is clearly part of a mockup background (tags, labels on the model's other clothing).
+   - For each block written in ALL CAPS, also give normal_case: the same text in normal capitalization for its language
+     (sentence starts, proper nouns and German nouns capitalized, everything else lowercase). Change ONLY letter case:
+     keep every other character exactly, including SS (never turn it into ß), accents, punctuation, [?] and line breaks.
+     Use null for blocks that are not written in ALL CAPS.
 
 2. PROOFREAD the transcribed text.
    - Detect the language of each block: de-DE, fr-FR, es-ES, en-US (or "unknown").
