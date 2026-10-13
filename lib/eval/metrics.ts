@@ -17,6 +17,8 @@ export interface EvalCase {
   language: string | null;
   /** From the optional "must_error" column: this error must reach status "error", not just "warning". */
   mustBeError?: boolean;
+  /** What Claude read (all blocks joined), to tell punctuation the tool changed from punctuation misread. */
+  transcribedText?: string | null;
 }
 
 export interface Rate {
@@ -39,6 +41,21 @@ export interface EvalSummary {
   falseAlarmStrict: Rate;
   /** "Chữ sau khi sửa" equals the expected text (case and spacing ignored). */
   textMatch: Rate;
+}
+
+const lettersAndDigits = (text: string) => normalizeText(text).replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
+const punctuation = (text: string) => normalizeText(text).replace(/[\p{L}\p{N}\s]/gu, "");
+
+/**
+ * "Chữ sau khi sửa" is right: same letters and digits as the answer. Punctuation only counts
+ * where the tool changed it (a fix that added a comma); punctuation Claude simply misread,
+ * like a decorative colon in AVISO:, is ignored (PLAN.md "Tiêu chí đạt", criterion 3).
+ */
+export function correctedTextMatches(c: Pick<EvalCase, "correctedText" | "expectedText" | "transcribedText">): boolean {
+  if (c.correctedText === null || c.expectedText === null) return false;
+  if (lettersAndDigits(c.correctedText) !== lettersAndDigits(c.expectedText)) return false;
+  const toolChangedPunctuation = c.transcribedText != null && punctuation(c.transcribedText) !== punctuation(c.correctedText);
+  return toolChangedPunctuation ? normalizeText(c.correctedText) === normalizeText(c.expectedText) : true;
 }
 
 function rate(hits: number, total: number): Rate {
@@ -86,7 +103,7 @@ export function summarize(cases: readonly EvalCase[]): EvalSummary {
     falseAlarm: rate(clean.filter(flagged).length, clean.length),
     falseAlarmStrict: rate(clean.filter((c) => c.status === "error").length, clean.length),
     textMatch: rate(
-      withText.filter((c) => normalizeText(c.correctedText ?? "") === normalizeText(c.expectedText ?? "")).length,
+      withText.filter((c) => correctedTextMatches(c)).length,
       withText.length,
     ),
   };
@@ -179,7 +196,7 @@ function languageCriteria(language: string, cases: readonly EvalCase[]): Criteri
       "Chữ sau khi sửa đúng ở mọi ca",
       cases
         .filter((c) => c.expectedText !== null)
-        .filter((c) => c.correctedText === null || normalizeText(c.correctedText) !== normalizeText(c.expectedText ?? ""))
+        .filter((c) => !correctedTextMatches(c))
         .map((c) =>
           c.correctedText === null
             ? `${c.file}: phân tích thất bại`

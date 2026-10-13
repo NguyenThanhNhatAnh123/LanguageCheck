@@ -153,6 +153,8 @@ Issue `info` vẫn hiện trong thẻ nhưng **không tính vào `status`**.
 - **Ngoại lệ:** không áp khi một phương án chỉ khác `original` ở dấu hoặc ký tự đặc biệt (`differsOnlyBySpecialCharacters()`: `ANO` → `AÑO`, `TU` → `TÚ`, `SI` → `SÍ`, `FUR` → `FÜR`, `ss` → `ß`, thêm `¿ ¡`). LanguageTool chấp nhận `ANO` vì đó là từ có thật; các quy tắc ngôn ngữ quyết định những ca này.
 - Lỗi ngữ pháp, hợp giống, chọn từ… không bị ảnh hưởng.
 
+**Lỗi chính tả chỉ LanguageTool báo** (`markLtOnlySpelling()`): issue `misspelling` chỉ LanguageTool báo (Claude đã đọc cùng chữ đó mà không báo) vẫn là Nghi ngờ để người xem, nhưng gắn `ltOnlySpelling` và **không áp vào "Chữ sau khi sửa"**. Thẻ ghi "Chỉ LanguageTool báo, chưa áp vào chữ sửa". Lý do: thường là từ lóng, thương hiệu hay tên riêng LanguageTool không biết (`CULAZO` từng bị sửa thành `CALAZO`); trong mọi lần eval, LanguageTool chưa bắt được lỗi thật nào mà Claude bỏ sót. Thêm từ vào từ điển là hết báo. Lỗi ngữ pháp chỉ LanguageTool báo vẫn được áp.
+
 **Issue không có cách sửa** (`applyNoFixRule()`): issue `error`/`warning` **chỉ Claude báo**, không còn phương án nào (sau khi cắt phần lặp và bỏ phương án trùng `original`), không đánh dấu `intentional_possible` và không phải `ocr_uncertain` → chỉ là `info` (Ghi chú, không tính vào status).
 - Lý do: Claude không đưa được cách sửa. Sonnet hay tạo issue cho chữ đúng rồi tự giải thích là đúng (`ICH WOG MAL`, `WUSSTEST`, `ERWACHSEN VERHALTEN`); chưa có lỗi thật nào thuộc dạng này.
 - Tên riêng Claude đánh dấu "có thể cố ý" (`HAIDA`) vẫn là `warning`, để nhắc thêm vào từ điển. Không áp khi LanguageTool cũng báo cùng chỗ.
@@ -165,7 +167,7 @@ Issue `info` vẫn hiện trong thẻ nhưng **không tính vào `status`**.
 
 ### Chữ sau khi sửa
 
-Code tự tính cho từng block, Claude không trả trường này. Cách tính: áp phương án đầu tiên (đã chuyển kiểu chữ ở mục trên) của mỗi issue `error`/`warning` có `intentional_possible = false`, trừ issue `ltAccepted` (xem "Cách tính `status`").
+Code tự tính cho từng block, Claude không trả trường này. Cách tính: áp phương án đầu tiên (đã chuyển kiểu chữ ở mục trên) của mỗi issue `error`/`warning` có `intentional_possible = false`, trừ issue `ltAccepted` và `ltOnlySpelling` (xem "Cách tính `status`").
 
 Các hàm quy đổi, gắn nhãn, merge, xử lý phương án sửa, tính `status` và tính chữ sau khi sửa đặt trong module dùng chung, để client gọi lại được sau khi thêm từ vào từ điển.
 
@@ -302,7 +304,7 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
   - **Tiêu chí đạt** (in cuối mỗi lần chạy, ĐẠT/TRƯỢT theo từng ngôn ngữ, kèm danh sách ca trượt; `evaluateCriteria()` trong `lib/eval/metrics.ts`):
     - 0 ảnh đúng bị xếp Lỗi; Nghi ngờ trên ảnh đúng ≤ 2 mỗi ngôn ngữ.
     - de/fr/es: 100% lỗi cố ý nằm ở Lỗi hoặc Nghi ngờ; các ca đánh dấu `must_error` (ANO, FUR, sai giống/số/cách) phải ở Lỗi.
-    - "Chữ sau khi sửa" đúng ở mọi ca (không có chữ hỏng như `FU IMMER`, `THE BEST THE BEST`).
+    - "Chữ sau khi sửa" đúng ở mọi ca (không có chữ hỏng như `FU IMMER`, `THE BEST THE BEST`). So chữ và số (`correctedTextMatches()`); dấu câu chỉ tính ở chỗ tool đã thay đổi so với chữ Claude đọc, dấu câu Claude đọc sót mà tool không đụng tới (dấu hai chấm cách điệu trong `AVISO:`) thì bỏ qua.
     - Trung bình < 15 s/ảnh.
     - Ảnh chữ tiếng Anh (không kiểm) phải ở Nghi ngờ.
     - Bộ tổng hợp chỉ kiểm logic. **Bộ mockup thật (`test-images/`) phải ĐẠT trước Giai đoạn 6.**

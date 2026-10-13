@@ -149,7 +149,8 @@ async function main(): Promise<void> {
           output: response.usage.outputTokens,
         }
       : null;
-    cases.push({ file, expectedError, expectedText, status, correctedText, language, mustBeError, ms, model: response.ok ? response.model : null, attempts: response.attempts, tokens, ltStatus: response.ok ? response.result.ltStatus : null });
+    const transcribedText = response.ok ? response.result.blocks.map((block) => block.text).join("\n") : null;
+    cases.push({ file, expectedError, expectedText, status, correctedText, transcribedText, language, mustBeError, ms, model: response.ok ? response.model : null, attempts: response.attempts, tokens, ltStatus: response.ok ? response.result.ltStatus : null });
 
     const flagged = status === "error" || status === "warning";
     const verdict = status === null ? "THẤT BẠI" : flagged === expectedError ? "đúng" : expectedError ? "BỎ SÓT" : "BÁO NHẦM";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateCriteria, formatRate, normalizeText, parseExpectedError, summarize, summarizeByLanguage, type EvalCase } from "./metrics";
+import { correctedTextMatches, evaluateCriteria, formatRate, normalizeText, parseExpectedError, summarize, summarizeByLanguage, type EvalCase } from "./metrics";
 
 const c = (expectedError: boolean, status: EvalCase["status"], extra: Partial<EvalCase> = {}): EvalCase => ({
   file: "x.png",
@@ -63,6 +63,27 @@ describe("formatting", () => {
     expect(normalizeText("J’AI JUSTE RAISON")).toBe(normalizeText("J'AI JUSTE RAISON"));
     expect(normalizeText("“ME LA SUDA”")).toBe(normalizeText('"ME LA SUDA"'));
     expect(normalizeText("YO QUÉ SÉ…")).toBe(normalizeText("YO QUÉ SÉ..."));
+  });
+});
+
+describe("correctedTextMatches (criterion 3)", () => {
+  const m = (correctedText: string, expectedText: string, transcribedText: string) => correctedTextMatches({ correctedText, expectedText, transcribedText });
+
+  it("ignores punctuation Claude misread and the tool left alone", () => {
+    expect(m("AVISO\nESTOY", "AVISO:\nESTOY", "AVISO\nESTOY")).toBe(true);
+  });
+
+  it("still fails when the tool's own fix changed punctuation wrongly", () => {
+    expect(m("JE SUIS PAS\nFATIGUÉE, JE SUIS", "JE SUIS PAS\nFATIGUÉE\nJE SUIS", "JE SUIS PAS\nFATIGUÉE\nJE SUIS")).toBe(false);
+  });
+
+  it("fails on any letter difference (broken fix or missed fix)", () => {
+    expect(m("DEBO DE TENER UN CALAZO", "DEBO DE TENER UN CULAZO", "DEBO DE TENER UN CULAZO")).toBe(false);
+    expect(m("NUR FUR DICH", "NUR FÜR DICH", "NUR FUR DICH")).toBe(false);
+  });
+
+  it("passes a fix that is right, punctuation included", () => {
+    expect(m("DON'T LOSE", "DON'T LOSE", "DONT LOSE")).toBe(true);
   });
 });
 
