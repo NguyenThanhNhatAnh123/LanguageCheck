@@ -11,15 +11,15 @@ export interface ClaudeRuntime {
   maxConcurrency: number;
 }
 
-const globalForClaude = globalThis as typeof globalThis & {
-  __podQaClaudeRuntime?: { key: string; runtime: ClaudeRuntime };
-};
+// Module-level, not globalThis: when a dev hot reload changes the schema or the transport
+// code, this module reloads too and the transport is rebuilt. Cached on globalThis it kept
+// sending the old output schema while the new one validated the answers (every image failed).
+let cached: { key: string; runtime: ClaudeRuntime } | undefined;
 
 /** Live SDK client, or fixtures in development without a key. Cached per configuration. */
 export function getClaudeRuntime(): ClaudeRuntime {
   const config = getClaudeConfig();
   const key = config.mode === "live" ? `live:${config.model}:${config.effort}:${config.maxConcurrency}` : `mock:${config.maxConcurrency}`;
-  const cached = globalForClaude.__podQaClaudeRuntime;
   if (cached?.key === key) return cached.runtime;
 
   const runtime: ClaudeRuntime =
@@ -33,6 +33,6 @@ export function getClaudeRuntime(): ClaudeRuntime {
       : { transport: createMockTransport(), mock: true, model: "mock", maxConcurrency: config.maxConcurrency };
 
   if (runtime.mock) console.info("[claude] mock mode: answering from fixtures/claude");
-  globalForClaude.__podQaClaudeRuntime = { key, runtime };
+  cached = { key, runtime };
   return runtime;
 }
