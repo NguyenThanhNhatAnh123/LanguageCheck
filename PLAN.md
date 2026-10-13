@@ -327,6 +327,33 @@ Làm Giai đoạn 5:
   - Ở cả 2 ca, Claude báo một dạng động từ đúng là lỗi chính tả, rồi tự viết trong giải thích là "đúng, không có lỗi". Quy tắc LanguageTool chấp nhận giữ chúng ở mức Nghi ngờ.
   - Khi thêm mockup thật, kiểu báo nhầm này có thể vượt giới hạn ≤ 2.
 
+**Thêm câu "chỉ báo khi chữ thật sự sai" vào prompt + 5 mockup ảnh chụp mới (`1.png`–`5.png`), 2026-10-13:**
+- 5 ảnh mới: mockup ảnh chụp có người mặc, có chữ ở hậu cảnh (poster "Good Things Take Time", "Good Vibes Only", biển "KLEINE DINGE GROSSE FREUDE"). Đáp án `claude-draft`:
+  - `1.png` fr, đúng.
+  - `2.png` fr, lỗi `ÉPUISER` → `ÉPUISÉE`, `must_error`.
+  - `3.png` de, đúng.
+  - `4.png` de, lỗi `KAFFEE MACHEN` → `MACHT`, `must_error`.
+  - `5.png` de, đúng.
+
+| Bộ | de-DE | fr-FR | es-ES | Tiếng Anh | s/ảnh | Kết luận |
+|---|---|---|---|---|---|---|
+| Tổng hợp (29) | ĐẠT | ĐẠT | ĐẠT | ĐẠT | 4,2 | **ĐẠT** (0 ảnh đúng bị báo) |
+| Thật (13: 11 de, 2 fr) | TRƯỢT (2) | ĐẠT | — | — | 5,0 | TRƯỢT |
+
+- Chữ hậu cảnh đều được bỏ qua đúng. "Chữ sau khi sửa" đúng 13/13 ở bộ thật.
+- `JE SUIS PAS` (thiếu `ne`) chỉ là Ghi chú "có thể cố ý". `ÉPUISER` → `ÉPUISÉE` ở Lỗi (cả 2 nguồn cùng báo).
+- `WUSSTEST` không còn bị báo (câu mới trong prompt có tác dụng ở ca này).
+- **Ca trượt:**
+  - `08-sk7535-black.jpg` (`ICH WOG MAL`): ảnh đúng bị xếp **Lỗi**.
+    - Claude đổi loại lỗi từ `spelling` sang `grammar` (2/2 lần chạy lại), nên quy tắc LanguageTool chấp nhận (chỉ áp cho chính tả) không chặn được.
+    - Vẫn không có phương án sửa, và giải thích vẫn tự mâu thuẫn ("wog … đúng ngữ pháp").
+  - `4.png` (`KAFFEE MACHEN`): trong lượt eval Claude chấm `warning` nên chỉ ở Nghi ngờ, trượt "ca bắt buộc ở Lỗi". Chạy lại 2 lần đều là Lỗi, nên đây là dao động ngẫu nhiên.
+- Quét mọi log eval từ đầu (Sonnet, Haiku, Opus, cả 2 bộ): **ca duy nhất** Claude báo `error` mà không có phương án sửa là `WOG` (báo nhầm). Không có lỗi thật nào thuộc dạng này.
+- **Đề xuất, chờ duyệt:**
+  - **(c)** Lỗi chỉ Claude báo mà không có phương án sửa nào thì tối đa Nghi ngờ (Claude không đưa được cách sửa nghĩa là không chắc). Sửa được `WOG` ở dạng hiện tại; không ảnh hưởng lỗi thật nào trong dữ liệu đến nay.
+  - Nếu Claude vẫn báo nhầm kiểu này kèm phương án sai (đã gặp `WOGEN`, `WIEGE`), thử Opus 5.5 (đúng 3/3 ở `WOG`).
+  - Ca `KAFFEE MACHEN` chưa có cách chặn trong code; cần thêm dữ liệu để biết Claude có hay chấm thấp lỗi hợp số không.
+
 **Đáp án bộ thật:** cả 8 dòng đang là `source = claude-draft` (Claude Code soạn từ việc đọc ảnh). Sẽ được thay bằng chữ gốc từ file thiết kế. Eval cảnh báo khi còn dòng `claude-draft`.
 
 ---
