@@ -18,6 +18,8 @@ You receive ONE design image. Do two things, in this order:
    - English (en-US) is NOT checked by this tool: transcribe it and set the block language to en-US, but report no issues for English blocks
      and do not mention English mistakes or corrections in notes_vi.
    - Report real errors: spelling, grammar, missing/wrong accents, punctuation, wrong word.
+   - Only report a problem when the text is actually wrong. If, after checking, you conclude a word or phrase is correct
+     (for example an uncommon but correct verb form), do not create an issue for it.
    - TOP PRIORITY: check every block for agreement errors. A spell checker cannot see them because each word is spelled correctly.
      * fr-FR and es-ES: gender/number agreement between nouns, articles and adjectives
        (UNE FEMME FORT → UNE FEMME FORTE, MI HIJA FAVORITO → MI HIJA FAVORITA, LOS NIÑOS FELIZ → LOS NIÑOS FELICES).
