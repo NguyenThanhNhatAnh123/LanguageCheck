@@ -291,15 +291,18 @@ function applyLtAcceptedSpellingRule(issue: DraftIssue, language: Language | und
 }
 
 /**
- * An error only Claude reports, with no suggestion left (after trimming and dropping no-op
- * ones), is at most a warning: Claude could not say how to fix it, so it is not sure, and
- * Sonnet has flagged correct forms this way (ICH WOG MAL, typed grammar). Not applied when
- * LanguageTool reports the same spot.
+ * An issue only Claude reports, with no suggestion left (after trimming and dropping no-op
+ * ones), not marked possibly intentional and not an unreadable spot, is only a note (info):
+ * Claude could not say how to fix it. Sonnet creates such issues on correct text and then
+ * explains it is correct (ICH WOG MAL, WUSSTEST, ERWACHSEN VERHALTEN); no real error has looked
+ * like this so far. Proper nouns Claude marks possibly intentional (HAIDA) stay warnings, so
+ * they still prompt adding to the dictionary. Not applied when LanguageTool reports the spot.
  */
 function applyNoFixRule(issue: DraftIssue): DraftIssue {
-  if (issue.severity !== "error" || issue.suggestions.length > 0) return issue;
+  if (issue.severity === "info" || issue.suggestions.length > 0) return issue;
+  if (issue.intentionalPossible || issue.type === "ocr_uncertain") return issue;
   if (issue.sources.length !== 1 || issue.sources[0] !== "claude") return issue;
-  return { ...issue, severity: "warning" };
+  return { ...issue, severity: "info" };
 }
 
 /**

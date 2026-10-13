@@ -50,7 +50,7 @@ describe("findOccurrence / locating Claude issues", () => {
 
   it("downgrades an issue whose original is not in the block to warning", () => {
     const { result, claudeIssuesNotFound } = analyzeTexts(
-      { claude: analysis("de-DE", ["HALLO"], [{ original: "WELT" }]), ltMatches: [], ltStatus: "online" },
+      { claude: analysis("de-DE", ["HALLO"], [{ original: "WELT", suggestions: [{ text: "WELTEN", note_vi: null }] }]), ltMatches: [], ltStatus: "online" },
       noDictionary,
     );
     expect(claudeIssuesNotFound).toBe(1);
@@ -407,18 +407,30 @@ describe("correctedText", () => {
   });
 });
 
-describe("Claude-only errors without any fix", () => {
-  it("ICH WOG MAL typed grammar, no suggestion: at most Nghi ngờ", () => {
+describe("Claude-only issues without any fix", () => {
+  it("ICH WOG MAL typed grammar, no suggestion: only a note, image Không lỗi", () => {
     const result = run(
       analysis("de-DE", ["KLAR HABE ICH ZUGENOMMEN ICH WOG MAL 3500 GRAMM"], [{ original: "WOG", type: "grammar", severity: "error", suggestions: [] }]),
     );
-    expect(result.issues[0].severity).toBe("warning");
-    expect(result.status).toBe("warning");
+    expect(result.issues[0].severity).toBe("info");
+    expect(result.status).toBe("ok");
+  });
+
+  it("ERWACHSEN VERHALTEN, a warning without a fix: also only a note", () => {
+    const result = run(analysis("de-DE", ["ICH WOLLTE MICH ERWACHSEN VERHALTEN"], [{ original: "ERWACHSEN VERHALTEN", type: "grammar", severity: "warning", suggestions: [] }]));
+    expect(result.status).toBe("ok");
   });
 
   it("also when the only suggestion was a no-op or repeated the context", () => {
     const result = run(analysis("de-DE", ["GROSSE LIEBE"], [{ original: "GROSSE", type: "grammar", suggestions: [{ text: "GROSSE LIEBE", note_vi: null }] }]));
-    expect(result.status).toBe("warning");
+    expect(result.status).toBe("ok");
+  });
+
+  it("keeps a possibly intentional proper noun (HAIDA) and an unreadable spot as Nghi ngờ", () => {
+    const haida = run(analysis("de-DE", ["STOLZ AUF HAIDA"], [{ original: "HAIDA", type: "spelling", severity: "warning", intentional_possible: true, suggestions: [] }]));
+    expect(haida.status).toBe("warning");
+    const unreadable = run(analysis("de-DE", ["GEBOREN ZUM F[?]HREN"], [{ original: "F[?]HREN", type: "ocr_uncertain", severity: "warning", suggestions: [] }]));
+    expect(unreadable.status).toBe("warning");
   });
 
   it("stays Lỗi when LanguageTool reports the same spot", () => {

@@ -153,7 +153,9 @@ Issue `info` vẫn hiện trong thẻ nhưng **không tính vào `status`**.
 - **Ngoại lệ:** không áp khi một phương án chỉ khác `original` ở dấu hoặc ký tự đặc biệt (`differsOnlyBySpecialCharacters()`: `ANO` → `AÑO`, `TU` → `TÚ`, `SI` → `SÍ`, `FUR` → `FÜR`, `ss` → `ß`, thêm `¿ ¡`). LanguageTool chấp nhận `ANO` vì đó là từ có thật; các quy tắc ngôn ngữ quyết định những ca này.
 - Lỗi ngữ pháp, hợp giống, chọn từ… không bị ảnh hưởng.
 
-**Lỗi không có cách sửa** (`applyNoFixRule()`): issue `error` **chỉ Claude báo** mà không còn phương án nào (sau khi cắt phần lặp và bỏ phương án trùng `original`) → tối đa `warning`. Claude không đưa được cách sửa nghĩa là không chắc; Sonnet từng báo nhầm `ICH WOG MAL` theo cách này (loại `grammar`, không phương án). Không áp khi LanguageTool cũng báo cùng chỗ.
+**Issue không có cách sửa** (`applyNoFixRule()`): issue `error`/`warning` **chỉ Claude báo**, không còn phương án nào (sau khi cắt phần lặp và bỏ phương án trùng `original`), không đánh dấu `intentional_possible` và không phải `ocr_uncertain` → chỉ là `info` (Ghi chú, không tính vào status).
+- Lý do: Claude không đưa được cách sửa. Sonnet hay tạo issue cho chữ đúng rồi tự giải thích là đúng (`ICH WOG MAL`, `WUSSTEST`, `ERWACHSEN VERHALTEN`); chưa có lỗi thật nào thuộc dạng này.
+- Tên riêng Claude đánh dấu "có thể cố ý" (`HAIDA`) vẫn là `warning`, để nhắc thêm vào từ điển. Không áp khi LanguageTool cũng báo cùng chỗ.
 
 - `error`: có issue severity `error` được cả 2 nguồn cùng báo, hoặc Claude báo `error` với `intentional_possible = false`
 - `warning`: còn issue `error`/`warning` nào đó mà không đủ điều kiện `error` ở trên, hoặc có issue loại `ocr_uncertain` (kể cả severity `info`). Gồm: issue chỉ 1 nguồn báo, và issue `warning` cả 2 nguồn cùng báo (ví dụ tên riêng `HAIDA`: Claude báo warning có chủ đích, LanguageTool báo misspelling). Cũng là `warning` khi ảnh có chữ tiếng Anh (không kiểm, cần xem tay).
