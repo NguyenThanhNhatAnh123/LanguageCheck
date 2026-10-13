@@ -540,6 +540,11 @@ Làm sau khi tool đã chạy ổn định. Mục đích là để LanguageTool 
   - 12/12 ảnh xong trong khoảng 10 s.
   - Mỗi máy chỉ thấy kết quả của mình.
   - Máy A đăng xuất thì máy B vẫn đăng nhập và giữ kết quả.
+- **Kiểm bằng 5 trình duyệt** (Claude thật, `CLAUDE_MAX_CONCURRENCY=8`), mỗi máy 6–7 ảnh tổng hợp khác nhau cộng một bản sao `NUR FUR DICH`, tải cùng lúc:
+  - 33/33 ảnh xong trong 20 s (máy chậm nhất), 0 thất bại, không lỗi 429/529. Mỗi request ở server mất p50 7,8 s, p90 9,7 s, tối đa 13 s, gồm cả thời gian xếp hàng chờ vì 20 request tới cùng lúc mà chỉ 8 được gọi Claude.
+  - Mỗi máy chỉ thấy thẻ của mình. Mọi ảnh lỗi ở Lỗi (riêng ảnh tiếng Anh ở Nghi ngờ), không ảnh đúng nào bị báo.
+  - A thêm `FUR` từ thẻ → B–E focus → cả 4 bản sao thành Không lỗi. A xóa `FUR` → B–E focus sau 10 s → vẫn Không lỗi. E tải bản sao mới → Lỗi.
+  - A đăng xuất → B–E vẫn đăng nhập, kết quả còn nguyên.
 - **Đã sửa** (`d27eee4`): dev server giữ transport Claude cũ (cache trên `globalThis`) sau khi đổi schema, làm mọi ảnh thất bại `invalid_schema`. Production khởi động lại mỗi lần deploy nên không bị.
 - **Đăng nhập** (`ebfdae3`):
   - Mỗi lần sai làm chậm lần sau (1s, 2s, 4s… tối đa 10s); khóa 5 phút sau 10 lần sai, theo IP. Cả văn phòng chung một IP nên trước đây (5 lần, khóa 15 phút) một người gõ sai có thể khóa mọi người.
