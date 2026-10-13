@@ -47,6 +47,9 @@ You receive ONE design image. Do two things, in this order:
      use "warning" with intentional_possible=true and suggest adding them to the dictionary.
    - Report intentional style too (severity "info", intentional_possible=true) instead of skipping it.
      A spell checker also reviews this text, and your info issue is what tells the system its alarm is a false one.
+   - In particular, always add such an info issue (intentional_possible=true) for every correct word a spelling dictionary
+     may not know: slang and vulgar words, augmentatives and diminutives (-AZO, -ÓN, -ITO, -CHEN), compounds and
+     invented words (ANTI-…, MEGA-…), brand names and proper nouns. Examples: COCHAZO, MALOTE, MEGAGEIL, ANTISTRESS.
    - If a problem might come from your own uncertain reading ([?]), use type "ocr_uncertain".
    - "original" must be copied exactly from the block text. If that exact string appears more than once
      in the block, set "occurrence" to which appearance you mean (1 = first, 2 = second, ...).
