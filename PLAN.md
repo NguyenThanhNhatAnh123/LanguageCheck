@@ -145,7 +145,7 @@ Tra docs Anthropic SDK hiện hành (vision, tool use / structured outputs, prom
   - Viết phương án lấn sang từ bên cạnh mà code không cắt được: `MEINE HUND` → `MEINE MEINEN HUND`.
   - Một ảnh sai schema 2 lần nên thất bại.
 - **Opus 5.5** (thử 8 ảnh khó, prompt cũ): không hơn Sonnet, chậm hơn.
-- **Đề xuất: Sonnet 5.5 + effort `low`** (đang là cấu hình mặc định; chờ duyệt). Không chia model theo độ khó: Haiku sai ở cả ảnh dễ, Opus không cải thiện ảnh khó, và muốn phân loại thì phải gọi thêm một lượt cho mỗi ảnh.
+- **Đề xuất ban đầu: Sonnet 5.5 + effort `low`** (đang là cấu hình mặc định). Không chia model theo độ khó: Haiku sai ở cả ảnh dễ, và muốn phân loại thì phải gọi thêm một lượt cho mỗi ảnh. **Cần xem lại sau khi chạy mockup thật:** Sonnet trượt tiêu chí ở ca `ICH WOG MAL`, Opus đạt; xem mục "Cổng chất lượng trước Giai đoạn 6".
 - **Các mục khác:**
   - API chấp nhận schema, `fallbacks` và `effort`. Không có lần nào sai schema hay bị cắt ở `max_tokens` với Sonnet.
   - Cache có tác dụng: khoảng 2.900 token đọc cache mỗi ảnh, cộng 1.140 token vào và khoảng 270 token ra.
@@ -239,6 +239,59 @@ Làm Giai đoạn 5:
 - Chế độ mock không ghi vào `usage_daily` (bảng đang trống, không có dữ liệu mock nào cần xóa).
 
 **Còn phải làm khi có API key và bộ ảnh test:** tạo `test-images/expected.csv` (mẫu `docs/expected.example.csv`), chạy `npm run eval` với Claude thật, ghi lại tỉ lệ bắt đúng / báo nhầm làm mốc. Chạy lại sau mỗi lần đổi prompt, model hoặc effort (và sau Giai đoạn 7).
+
+---
+
+## Cổng chất lượng trước Giai đoạn 6 (tiêu chí đạt)
+
+`npm run eval` tự kiểm và in ĐẠT/TRƯỢT theo từng ngôn ngữ, kèm danh sách ca trượt (`evaluateCriteria()` trong `lib/eval/metrics.ts`).
+
+**Tiêu chí:**
+1. 0 ảnh đúng bị xếp Lỗi. Nghi ngờ trên ảnh đúng ≤ 2 mỗi ngôn ngữ.
+2. de/fr/es: 100% lỗi cố ý nằm ở Lỗi hoặc Nghi ngờ. Các ca đánh dấu `must_error` trong `expected.csv` (ANO, FUR, sai giống/số/cách) phải ở **Lỗi**.
+3. "Chữ sau khi sửa" đúng ở mọi ca (không có chữ hỏng như `FU IMMER`, `THE BEST THE BEST`).
+4. Trung bình < 15 s/ảnh.
+
+**Hai bộ test:**
+- **Bộ tổng hợp 31 ảnh** (`npm run test-images`): chỉ kiểm logic (quy tắc, gộp nguồn, "Chữ sau khi sửa").
+- **Bộ mockup thật** (`test-images/`): **phải ĐẠT trước Giai đoạn 6.**
+
+### Kết quả 2026-10-13
+
+| Bộ | Model (effort low) | de-DE | fr-FR | es-ES | en-US | s/ảnh | Kết luận |
+|---|---|---|---|---|---|---|---|
+| Tổng hợp (31) | Sonnet 5.5 | ĐẠT | ĐẠT | ĐẠT | TRƯỢT (3) | 3,8 | TRƯỢT |
+| Tổng hợp (31) | Opus 5.5 | ĐẠT | ĐẠT | ĐẠT | ĐẠT | 5,2 | **ĐẠT** |
+| Thật (8, toàn de-DE) | Sonnet 5.5 | TRƯỢT (1) | — | — | — | 5,1 | TRƯỢT |
+| Thật (8, toàn de-DE) | Opus 5.5 | ĐẠT | — | — | — | 6,6 | **ĐẠT** |
+
+**Ca trượt và lý do:**
+- **Sonnet, mockup thật, `08-sk7535-black.jpg` (`ICH WOG MAL 3500 GRAMM`), trượt tiêu chí 1.**
+  - Claude xếp **Lỗi** cho `WOG` (loại spelling), dù `wog` là Präteritum đúng của `wiegen`. Lời giải thích của Claude còn tự viết "'Ich wog mal' là đúng ngữ pháp".
+  - Lặp lại 3/3 lần với effort `low`, và 3/3 lần với `medium` (2 Nghi ngờ, 1 Lỗi).
+  - LanguageTool không báo gì. Nhưng theo cách tính status, "Claude báo error, không cố ý" là đủ để xếp Lỗi.
+  - Opus đúng ở 3/3 lần chạy.
+- **Sonnet, bộ tổng hợp, `en-dont-loose-hope.png`, trượt tiêu chí 3.**
+  - Claude coi `DONT` thiếu dấu nháy là "có thể cố ý" nên không áp vào chữ sửa: ra `DONT LOSE HOPE`, đáp án `DON'T LOSE HOPE`.
+  - Không phải chữ hỏng, nhưng chưa sửa hết. Lặp lại ở cả 3 lượt chạy với prompt mới. Opus sửa đúng.
+- **Ảnh đúng bị xếp Nghi ngờ (vẫn trong giới hạn ≤ 2):**
+  - `en-haida-pride.png`: tên riêng chưa có trong từ điển, cả 2 model. Đúng spec.
+  - `14-sk5231-black.jpg` (Opus): thiếu dấu phẩy trước mệnh đề quan hệ (`PROBLEME, VON DENEN`, `WEISE, DIE`), mức "có thể cố ý". Đúng ngữ pháp Đức, và thiết kế có dùng dấu phẩy ở chỗ khác nên báo là hợp lý.
+
+**LanguageTool và Claude cùng kiểm mọi ảnh:**
+- Bộ tổng hợp: 12 lỗi cả 2 nguồn cùng báo, 9–10 lỗi chỉ Claude báo, 0 lỗi chỉ LanguageTool báo (sau khi lọc).
+  - Lỗi chỉ Claude bắt đều là lỗi ngữ pháp/hợp giống: `MEINE HUND`, `PARFAIT`, `ORGULLOSO`, `CHOSE`, `LOOSE`, `THERE`. LanguageTool (chưa có n-gram) không bắt được loại này.
+- 8 mockup thật: LanguageTool trả về 0 match, đúng vì chữ không sai. LanguageTool chấp nhận `WOG`.
+- Từ nay eval in trạng thái LanguageTool của từng ảnh, và cảnh báo nếu có ảnh LanguageTool lỗi/tắt (kết quả khi đó chỉ từ Claude).
+
+**Chưa đủ để mở cổng:**
+- Bộ thật mới có 8 ảnh, toàn tiếng Đức, không ảnh nào có lỗi. Tiêu chí 2 (bắt lỗi) chưa kiểm được trên ảnh thật.
+- Cần thêm mockup thật **fr-FR và es-ES**, và mockup thật **có lỗi**.
+- Đáp án `test-images/expected.csv` hiện là bản nháp Claude Code soạn từ việc đọc ảnh, cần người xác nhận.
+
+**Cần quyết:**
+- **(a)** Đổi sang Opus 5.5: đạt cả 2 bộ, chậm hơn khoảng 30–40% (vẫn xa ngưỡng 15 s), giá mỗi token cao hơn.
+- **(b)** Giữ Sonnet và thêm quy tắc: lỗi **chính tả** chỉ Claude báo, trên từ mà LanguageTool (đang chạy) chấp nhận, thì tối đa Nghi ngờ. Quy tắc thiếu Ñ vẫn nâng lên Lỗi sau đó. Cách này sửa được ca `WOG` nhưng không sửa ca `DONT`.
 
 ---
 

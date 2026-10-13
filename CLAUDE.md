@@ -283,7 +283,13 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
 - `npm run eval [-- --dir <thư mục>]`: chạy mọi ảnh trong `test-images/expected.csv` qua đúng pipeline của `/api/analyze` (hàm dùng chung `analyzeMockup()` trong `lib/analysis/analyze-mockup.ts`).
   - Ảnh được thu nhỏ giống trình duyệt bằng `sharp` (devDependency).
   - In tỉ lệ bắt đúng và báo nhầm (tính "Lỗi + Nghi ngờ", và chỉ "Lỗi"), cùng tỉ lệ "Chữ sau khi sửa" khớp đáp án, **tổng và tách theo từng ngôn ngữ**, kèm thời gian và token trung bình mỗi ảnh. `--verbose` in thêm chữ đọc được và các lỗi. Lưu kết quả vào `<thư mục>/eval-results/<thời điểm>.json`.
-  - `expected.csv`: cột `file,expected_text,has_error[,language]`, mẫu ở `docs/expected.example.csv`. Có API key thì gọi Claude thật và ghi vào `usage_daily`; không có key (dev) thì chạy mock.
+  - **Tiêu chí đạt** (in cuối mỗi lần chạy, ĐẠT/TRƯỢT theo từng ngôn ngữ, kèm danh sách ca trượt; `evaluateCriteria()` trong `lib/eval/metrics.ts`):
+    - 0 ảnh đúng bị xếp Lỗi; Nghi ngờ trên ảnh đúng ≤ 2 mỗi ngôn ngữ.
+    - de/fr/es: 100% lỗi cố ý nằm ở Lỗi hoặc Nghi ngờ; các ca đánh dấu `must_error` (ANO, FUR, sai giống/số/cách) phải ở Lỗi.
+    - "Chữ sau khi sửa" đúng ở mọi ca (không có chữ hỏng như `FU IMMER`, `THE BEST THE BEST`).
+    - Trung bình < 15 s/ảnh.
+    - Bộ tổng hợp chỉ kiểm logic. **Bộ mockup thật (`test-images/`) phải ĐẠT trước Giai đoạn 6.**
+  - `expected.csv`: cột `file,expected_text,has_error[,language][,must_error]`, mẫu ở `docs/expected.example.csv`. Có API key thì gọi Claude thật và ghi vào `usage_daily`; không có key (dev) thì chạy mock.
   - **Bộ test cố định:** `npm run test-images` tạo 31 mockup áo thun tổng hợp (de/fr/es/en, có lỗi và không lỗi, gồm chữ viết tay mờ, chữ in mòn, chữ nghiêng, PNG nền trong suốt, tag cổ áo, áo trơn) cùng `expected.csv` vào `test-images/synthetic/`, vẽ bằng font Windows nên lần nào cũng giống hệt; ảnh không commit, danh sách ca nằm trong `scripts/generate-test-mockups.ts`. Chạy: `npm run eval -- --dir test-images/synthetic`. Mockup thật đặt ở `test-images/` vẫn cần, vì chữ vẽ từ font dễ đọc hơn ảnh in thật.
 - Trước khi viết code dùng Anthropic SDK hoặc Drizzle, **tra docs hiện hành**.
 - Ngôn ngữ:
