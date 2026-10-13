@@ -27,7 +27,8 @@ Không có `ANTHROPIC_API_KEY` thì app chạy **chế độ mock**: kết quả
 | `npm run dev` | Chạy dev server (chỉ nghe 127.0.0.1) |
 | `npm run build` / `npm start` | Build và chạy bản production (127.0.0.1:3000) |
 | `npm run lint` / `npm run typecheck` / `npm test` | Kiểm tra code, unit test |
-| `npm run eval -- [--dir <thư mục>]` | Chạy bộ ảnh test, in tỉ lệ bắt đúng/báo nhầm (CLAUDE.md "Stack và quy ước code") |
+| `npm run eval -- [--dir <thư mục>] [--verbose]` | Chạy bộ ảnh test qua đúng pipeline (gọi Claude thật nếu có key), in kết quả theo từng ngôn ngữ và **ĐẠT/TRƯỢT theo tiêu chí** (PLAN.md "Cổng chất lượng trước Giai đoạn 6"). Mặc định `test-images/` (mockup thật). |
+| `npm run test-images` | Tạo bộ 29 mockup tổng hợp cố định vào `test-images/synthetic/` (chạy eval bằng `--dir test-images/synthetic`) |
 | `npm run db:generate` | Sinh migration sau khi sửa `lib/db/schema.ts` |
 | `npm run db:migrate` | Áp migration vào `DATABASE_PATH` |
 | `npm run db:backup -- <file>` | Sao lưu database (an toàn khi app đang chạy) |
@@ -39,7 +40,11 @@ Nếu sửa layout hoặc store ở root layout mà dev server vẫn hiện bả
 
 ## Cài lên máy server (lần đầu)
 
-Làm xong **Giai đoạn 0B** trong `PLAN.md` trước (Node, npm, Java, Git, NSSM, cloudflared, service LanguageTool). Mọi lệnh dưới đây chạy trong **PowerShell mở bằng quyền Administrator**.
+Điều kiện trước:
+- Làm xong **Giai đoạn 0B** trong `PLAN.md` (Node, npm, Java, Git, NSSM, cloudflared, service LanguageTool).
+- Bộ mockup thật (`test-images/`, đáp án đã xác nhận, không còn dòng `claude-draft`) **ĐẠT** khi chạy `npm run eval` trên máy dev (PLAN.md "Cổng chất lượng trước Giai đoạn 6").
+
+Mọi lệnh dưới đây chạy trong **PowerShell mở bằng quyền Administrator**.
 
 ### 1. Lấy code và cấu hình
 
@@ -54,7 +59,7 @@ notepad .env.local
 Trong `.env.local`:
 
 - `ANTHROPIC_API_KEY`: key riêng của tool (đã đặt giới hạn chi tiêu theo tháng trên Anthropic Console).
-- `CLAUDE_MODEL`: model đã chọn sau khi so Sonnet/Haiku.
+- `CLAUDE_MODEL=claude-sonnet-5-5` và `CLAUDE_ANALYZE_EFFORT=low` (đã chọn qua eval). Nếu mockup thật bị đọc sai hoặc báo nhầm nhiều, thử `CLAUDE_MODEL=claude-opus-5-5` rồi `nssm restart PodQA` (không cần sửa code; Opus chậm hơn khoảng 30–40%, giá mỗi token cao hơn).
 - `APP_USERNAME` và `APP_PASSWORD_HASH_B64`: chạy `npm run hash-password`, nhập mật khẩu chung, dán dòng in ra.
 - `SESSION_SECRET`: chuỗi ngẫu nhiên, tạo bằng `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`.
 - `SESSION_VERSION=1`, `LT_URL=http://127.0.0.1:8081`, `DATABASE_PATH=./data/app.db`.
