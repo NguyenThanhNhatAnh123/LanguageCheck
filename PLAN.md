@@ -534,6 +534,24 @@ Làm sau khi tool đã chạy ổn định. Mục đích là để LanguageTool 
 
 ---
 
+## Nhiều máy dùng chung một tài khoản (kiểm 2026-10-13)
+
+- **Kiểm bằng 2 trình duyệt độc lập** cùng đăng nhập (`admin`), mỗi máy tải 6 ảnh cùng lúc:
+  - 12/12 ảnh xong trong khoảng 10 s.
+  - Mỗi máy chỉ thấy kết quả của mình.
+  - Máy A đăng xuất thì máy B vẫn đăng nhập và giữ kết quả.
+- **Đã sửa** (`d27eee4`): dev server giữ transport Claude cũ (cache trên `globalThis`) sau khi đổi schema, làm mọi ảnh thất bại `invalid_schema`. Production khởi động lại mỗi lần deploy nên không bị.
+- **Đăng nhập** (`ebfdae3`):
+  - Mỗi lần sai làm chậm lần sau (1s, 2s, 4s… tối đa 10s); khóa 5 phút sau 10 lần sai, theo IP. Cả văn phòng chung một IP nên trước đây (5 lần, khóa 15 phút) một người gõ sai có thể khóa mọi người.
+  - Mật khẩu chung tối thiểu 16 ký tự ngẫu nhiên; `npm run hash-password` cảnh báo nếu ngắn hơn.
+  - Đã đo trên dev: lần sai 1/2/3 phản hồi sau 1,5 s / 2,5 s / 4,4 s.
+- **Từ điển giữa các máy:** tải lại khi tab được focus (tối đa 1 lần/10 s) và lọc lại kết quả đang hiện. Xóa từ không làm hiện lại lỗi cũ; "Hoàn tác" trên thẻ thì có. Kiểm bằng 2 trình duyệt với `NUR FUR DICH`:
+  - A thêm `FUR` → B focus → ảnh thành Không lỗi.
+  - A xóa `FUR` → B focus sau 10 s → vẫn Không lỗi.
+  - B tải bản sao → Lỗi (dùng từ điển hiện tại).
+  - Thêm từ thẻ rồi Hoàn tác → cả 2 ảnh hiện lỗi lại.
+- Khi đông người dùng: server cho tối đa `CLAUDE_MAX_CONCURRENCY` (8) ảnh gửi Claude cùng lúc, chung cho mọi máy; ảnh dư xếp hàng chờ. Nếu gặp 429 từ Anthropic, xem giới hạn tài khoản trên Console rồi chỉnh biến này.
+
 ## Vận hành
 
 - **Nhân viên:** mở `https://qa.<domain>`, đăng nhập bằng tài khoản chung. Không cần cài gì.

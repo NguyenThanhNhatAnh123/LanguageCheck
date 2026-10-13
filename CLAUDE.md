@@ -109,7 +109,10 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
   - `original` là một từ → nút "Thêm vào từ điển" (từ đã bỏ dấu câu ở hai đầu, ví dụ `YOU'RE!` → `YOU'RE`).
   - `original` là cụm nhiều từ → nút **"Thêm từng từ…"** mở popover có chip cho từng từ (tách bằng `splitWords()`, giữ dấu nháy/gạch nối bên trong từ, bỏ trùng). Bấm chip nào thêm từ đó; chip của từ đã có trong từ điển hiện dấu ✓. Lỗi của cả cụm biến mất khi mọi từ đã có.
   - Lưu xong hiện toast xác nhận có nút **"Hoàn tác"**: xóa đúng từ vừa thêm, các lỗi liên quan hiện lại. Từ đã có sẵn thì chỉ báo "đã có trong từ điển" (không có Hoàn tác, để không xóa nhầm từ có từ trước).
-  - Cơ chế lọc lại: `SessionProvider` giữ bản sao từ điển. Sau mỗi thay đổi từ điển (ở thẻ hoặc ở `/dictionary`), store tải lại danh sách rồi chạy lại `analyzeTexts()` trên `input` thô của mọi ảnh đã xong. Ảnh xong sau thời điểm đó cũng được lọc bằng từ điển mới nhất.
+  - Cơ chế lọc lại (`lib/client/dictionary-sync.ts`): `SessionProvider` giữ bản sao từ điển. Sau mỗi thay đổi từ điển, store tải lại danh sách rồi chạy lại `analyzeTexts()` trên `input` thô của mọi ảnh đã xong. Ảnh xong sau thời điểm đó được lọc bằng từ điển mới nhất.
+    - Tải lại khi: thay đổi từ điển ngay trong tab (ở thẻ hoặc ở `/dictionary`), và **khi tab được focus lại** (máy khác có thể đã đổi từ điển). Lần tải khi focus chỉ chạy khi tab có ảnh trong phiên, và không quá 1 lần mỗi 10 giây.
+    - **Xóa từ khỏi từ điển không làm hiện lại lỗi cũ** trên các kết quả đang hiện, dù xóa ở `/dictionary` hay từ máy khác. Mỗi kết quả nhớ những từ đã từng lọc nó, và lần lọc lại dùng "từ đã lọc trước đó + từ điển hiện tại". Lỗi của từ đã xóa chỉ hiện ở ảnh kiểm sau đó (tải lên mới hoặc "Thử lại").
+    - Ngoại lệ: **"Hoàn tác" ngay sau khi thêm từ từ thẻ** là huỷ thao tác vừa làm, nên các lỗi của từ đó hiện lại trên mọi kết quả trong tab.
 
 ### Quy đổi severity LanguageTool
 

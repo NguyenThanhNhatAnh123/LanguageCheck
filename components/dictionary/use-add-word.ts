@@ -8,10 +8,10 @@ import { LANGUAGE_LABELS, type Language } from "@/lib/languages";
 /**
  * Adds one word to the dictionary from a card: toast to confirm, with "Hoàn tác" when the
  * word is new (an already-present word is never removed by an undo). The session re-filters
- * every result itself. Resolves to true when the word is in the dictionary afterwards.
+ * every result itself; the undo brings the word's issues back. Resolves to true when the word is in the dictionary afterwards.
  */
 export function useAddWordToDictionary() {
-  const { addToDictionary, removeFromDictionary } = useSession();
+  const { addToDictionary, undoAddToDictionary } = useSession();
 
   return useCallback(
     async (word: string, language: Language, description?: string): Promise<boolean> => {
@@ -27,7 +27,7 @@ export function useAddWordToDictionary() {
           action: {
             label: "Hoàn tác",
             onClick: () => {
-              removeFromDictionary(entry.id)
+              undoAddToDictionary(entry)
                 .then(() => toast(`Đã bỏ "${entry.word}" khỏi từ điển`))
                 .catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Không hoàn tác được."));
             },
@@ -39,6 +39,6 @@ export function useAddWordToDictionary() {
         return false;
       }
     },
-    [addToDictionary, removeFromDictionary],
+    [addToDictionary, undoAddToDictionary],
   );
 }

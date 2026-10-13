@@ -13,16 +13,25 @@ import {
 } from "@/lib/client/dictionary-api";
 import { TaskQueue } from "@/lib/client/task-queue";
 import type { DictionaryEntryDto } from "@/lib/dictionary/dto";
-import { createDictionaryMatcher, type DictionaryMatcher } from "@/lib/dictionary/matcher";
+import {
+  dictionaryEntries,
+  dictionaryKey,
+  nextResultKeys,
+  shouldRefreshOnFocus,
+  type DictionaryKey,
+} from "@/lib/client/dictionary-sync";
+import { createDictionaryMatcher, type DictionaryKeyEntry } from "@/lib/dictionary/matcher";
 import type { Language } from "@/lib/languages";
 
 // The checking session lives here, mounted once in the root layout, so moving between
 // pages keeps it. It is lost only when the tab is closed or reloaded, or on
 // "Kết thúc phiên" (CLAUDE.md "Nguyên tắc sản phẩm": results are never stored).
 //
-// The team dictionary is mirrored here too: whenever it changes, every finished result is
-// recomputed from its raw input (analyzeTexts), so an issue on a word just added to the
-// dictionary disappears, and comes back if that is undone.
+// The team dictionary is mirrored here too: whenever it changes (in this tab, or seen when the
+// tab gets focus again), every finished result is recomputed from its raw input
+// (analyzeTexts), so an issue on a word just added to the dictionary disappears. A word
+// deleted from the dictionary keeps filtering the results already shown; only "Hoàn tác"
+// right after adding a word brings its issues back (lib/client/dictionary-sync.ts).
 
 const MAX_PARALLEL_UPLOADS = 4;
 const REAUTH_POLL_MS = 3_000;
@@ -36,19 +45,21 @@ export interface SessionItem extends PickedImage {
   state: ItemState;
   response: AnalyzeSuccess | null;
   error: string | null;
+  /** Dictionary words that have filtered this result so far (see dictionary-sync.ts). */
+  dictionaryKeys?: ReadonlySet<DictionaryKey>;
 }
 
 type Action =
   | { type: "add"; items: SessionItem[] }
   | { type: "start"; id: string }
-  | { type: "done"; id: string; response: AnalyzeSuccess }
+  | { type: "done"; id: string; response: AnalyzeSuccess; dictionaryKeys: ReadonlySet<DictionaryKey> }
   | { type: "fail"; id: string; error: string }
   | { type: "requeue"; ids: string[] }
-  | { type: "refilter"; matcher: DictionaryMatcher }
+  | { type: "refilter"; entries: DictionaryKeyEntry[]; forget: ReadonlySet<DictionaryKey> }
   | { type: "reset" };
 
-function refilter(response: AnalyzeSuccess, matcher: DictionaryMatcher): AnalyzeSuccess {
-  return { ...response, result: analyzeTexts(response.input, matcher).result };
+function refilter(response: AnalyzeSuccess, keys: ReadonlySet<DictionaryKey>): AnalyzeSuccess {
+  return { ...response, result: analyzeTexts(response.input, createDictionaryMatcher(dictionaryEntries(keys))).result };
 }
 
 function reducer(items: SessionItem[], action: Action): SessionItem[] {
@@ -60,15 +71,17 @@ function reducer(items: SessionItem[], action: Action): SessionItem[] {
     case "start":
       return update(action.id, { state: "processing" });
     case "done":
-      return update(action.id, { state: "done", response: action.response, error: null });
+      return update(action.id, { state: "done", response: action.response, error: null, dictionaryKeys: action.dictionaryKeys });
     case "fail":
       return update(action.id, { state: "failed", error: action.error });
     case "requeue":
       return items.map((item) => (action.ids.includes(item.id) ? { ...item, state: "queued", error: null } : item));
     case "refilter":
-      return items.map((item) =>
-        item.state === "done" && item.response ? { ...item, response: refilter(item.response, action.matcher) } : item,
-      );
+      return items.map((item) => {
+        if (item.state !== "done" || !item.response) return item;
+        const dictionaryKeys = nextResultKeys(item.dictionaryKeys ?? new Set(), action.entries, action.forget);
+        return { ...item, response: refilter(item.response, dictionaryKeys), dictionaryKeys };
+      });
     case "reset":
       return [];
   }
@@ -97,7 +110,10 @@ export interface SessionApi {
   refreshDictionary: () => Promise<void>;
   /** Each mutation refreshes the dictionary afterwards. They throw DictionaryApiError. */
   addToDictionary: (input: { language: Language; word: string; note?: string | null }) => Promise<{ created: boolean; entry: DictionaryEntryDto }>;
+  /** Deleting a word does not bring its old issues back on results already shown. */
   removeFromDictionary: (id: number) => Promise<void>;
+  /** "Hoàn tác" right after adding a word from a card: deletes it and brings its issues back. */
+  undoAddToDictionary: (entry: DictionaryEntryDto) => Promise<void>;
   importDictionary: (file: File) => Promise<{ created: number; existing: number; invalidLines: number[] }>;
 }
 
@@ -129,7 +145,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const hasItems = useRef(false);
   // Latest dictionary, once loaded: also applied to answers that arrive later (their
   // server-side filtering may predate a change made meanwhile).
-  const matcher = useRef<DictionaryMatcher | null>(null);
+  const currentEntries = useRef<DictionaryKeyEntry[] | null>(null);
+  // When the dictionary was last reloaded: focus reloads at most once per 10 seconds.
+  const lastDictionaryRefresh = useRef<number | null>(null);
 
   const pauseForReauth = useCallback(() => {
     ensureQueue(queue).pause();
@@ -153,8 +171,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             pauseForReauth();
             ensureQueue(queue).pushFront(task);
           } else if (outcome.kind === "done") {
-            const response = matcher.current ? refilter(outcome.response, matcher.current) : outcome.response;
-            dispatch({ type: "done", id: item.id, response });
+            const dictionaryKeys = nextResultKeys(new Set(), currentEntries.current ?? []);
+            const response = currentEntries.current ? refilter(outcome.response, dictionaryKeys) : outcome.response;
+            dispatch({ type: "done", id: item.id, response, dictionaryKeys });
           } else {
             dispatch({ type: "fail", id: item.id, error: outcome.error });
           }
@@ -220,13 +239,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [pauseForReauth],
   );
 
-  const refreshDictionary = useCallback(async () => {
+  /** Reloads the dictionary and re-filters every finished result; `forget` is used by Hoàn tác. */
+  const reloadDictionary = useCallback(async (forget: ReadonlySet<DictionaryKey>) => {
+    lastDictionaryRefresh.current = Date.now();
     try {
       const entries = await guard(fetchDictionary);
-      const next = createDictionaryMatcher(entries.map((entry) => ({ language: entry.language, wordKey: entry.wordKey })));
-      matcher.current = next;
+      const keyEntries = entries.map((entry) => ({ language: entry.language, wordKey: entry.wordKey }));
+      currentEntries.current = keyEntries;
       setDictionary({ entries, error: null });
-      dispatch({ type: "refilter", matcher: next });
+      dispatch({ type: "refilter", entries: keyEntries, forget });
     } catch (error) {
       setDictionary((current) => ({
         entries: current.entries,
@@ -234,6 +255,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }));
     }
   }, [guard]);
+
+  const refreshDictionary = useCallback(() => reloadDictionary(new Set()), [reloadDictionary]);
 
   const addToDictionary = useCallback<SessionApi["addToDictionary"]>(
     async (input) => {
@@ -251,6 +274,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     },
     [guard, refreshDictionary],
   );
+
+  const undoAddToDictionary = useCallback(
+    async (entry: DictionaryEntryDto) => {
+      await guard(() => deleteDictionaryWord(entry.id));
+      await reloadDictionary(new Set([dictionaryKey(entry)]));
+    },
+    [guard, reloadDictionary],
+  );
+
+  // Another machine may have changed the dictionary: reload when the tab gets focus again
+  // (at most once per 10 s) and re-filter the results shown here. Only while the tab has a
+  // session; on /login there is nothing to re-filter.
+  useEffect(() => {
+    const onFocus = () => {
+      if (!hasItems.current || document.visibilityState !== "visible") return;
+      if (!shouldRefreshOnFocus(lastDictionaryRefresh.current, Date.now())) return;
+      void refreshDictionary();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [refreshDictionary]);
 
   const importDictionary = useCallback(
     async (file: File) => {
@@ -315,9 +363,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       refreshDictionary,
       addToDictionary,
       removeFromDictionary,
+      undoAddToDictionary,
       importDictionary,
     }),
-    [items, authExpired, addImages, retry, endSession, pauseForReauth, dictionary, refreshDictionary, addToDictionary, removeFromDictionary, importDictionary],
+    [items, authExpired, addImages, retry, endSession, pauseForReauth, dictionary, refreshDictionary, addToDictionary, removeFromDictionary, undoAddToDictionary, importDictionary],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
