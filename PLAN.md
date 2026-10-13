@@ -433,6 +433,19 @@ Làm Giai đoạn 5:
   - Về `AVISO:`, chọn một trong hai:
     - Giữ tiêu chí 3 chặt (thiếu dấu khi đọc chữ cũng tính trượt).
     - Tiêu chí 3 chỉ xét chữ và số, bỏ qua khác biệt dấu câu mà tool không sửa.
+- **Đã áp (g) (`e23b048`) và tiêu chí 3 bỏ qua dấu câu tool không sửa (`e4f79d5`), chạy lại 2026-10-13:**
+
+| Bộ | de-DE | fr-FR | es-ES | Tiếng Anh | s/ảnh | Kết luận |
+|---|---|---|---|---|---|---|
+| Tổng hợp (29) | ĐẠT | ĐẠT | ĐẠT | ĐẠT | 3,7 | **ĐẠT** |
+| Thật (21: 11 de, 2 fr, 8 es) | ĐẠT | ĐẠT | TRƯỢT | — | 4,8 | TRƯỢT (tạm thời: đáp án `claude-draft`) |
+
+  - "Chữ sau khi sửa" đúng 21/21 ở bộ thật: `CULAZO` không còn bị đổi thành `CALAZO`, ca `AVISO:` không còn tính trượt.
+  - **es-ES trượt tiêu chí 1** vì **3** ảnh đúng ở Nghi ngờ: `CULAZO` (2 ảnh cùng thiết kế) và `ANTIGILIPOLLAS` (`5 (2).jpg`). Cả 3 là từ lóng/tục chỉ LanguageTool báo.
+  - Cơ chế đã có: khi Claude ghi Ghi chú "cố ý" cho từ lóng, báo động của LanguageTool được gộp thành Ghi chú (`ANTIGILIPOLLAS` ở `6 (2).jpg`, và ở `5 (2).jpg` lượt trước). Claude làm việc này không đều; với `CULAZO` thì chưa lần nào.
+- **Đề xuất, chờ duyệt:**
+  - **(h)** Nhấn mạnh trong prompt: từ lóng, từ tục, dạng nhấn mạnh/thu nhỏ (`-AZO`, `-ÓN`, `-ITO`), từ ghép (`ANTI-`…), thương hiệu, tên riêng mà từ điển có thể không có → luôn ghi `info` + `intentional_possible`, để báo động của LanguageTool được coi là báo nhầm. Ví dụ trong prompt khác với từ trong bộ test.
+  - Song song là quy trình từ điển của team: gặp lần đầu thì thêm từ (`CULAZO`, `ANTIGILIPOLLAS`), từ đó không bị báo nữa.
 - **Còn thiếu trước khi mở cổng Giai đoạn 6:**
   - ~~Mockup thật tiếng Tây Ban Nha (chưa có)~~: đã có 8 ảnh, đều không lỗi.
   - Thêm mockup thật có lỗi (mới có 2).
