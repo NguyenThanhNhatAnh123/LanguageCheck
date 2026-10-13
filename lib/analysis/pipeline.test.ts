@@ -3,7 +3,7 @@ import type { ClaudeAnalysis, ClaudeIssue } from "@/lib/claude/schema";
 import { createDictionaryMatcher } from "@/lib/dictionary/matcher";
 import { toWordKey } from "@/lib/dictionary/word-key";
 import type { Language } from "@/lib/languages";
-import { analyzeTexts, computeStatus, correctedText, findOccurrence, processSuggestions } from "./pipeline";
+import { analyzeTexts, computeStatus, correctedText, findOccurrence, processSuggestions, trimSuggestionContext } from "./pipeline";
 import type { Issue, LtBlockMatch, Suggestion } from "./types";
 
 const noDictionary = createDictionaryMatcher([]);
@@ -347,5 +347,47 @@ describe("analyzeTexts", () => {
   it("passes LanguageTool status through", () => {
     const { result } = analyzeTexts({ claude: analysis("en-US", ["HI"], []), ltMatches: [], ltStatus: "offline" }, noDictionary);
     expect(result.ltStatus).toBe("offline");
+  });
+});
+
+describe("trimSuggestionContext", () => {
+  const trim = (block: string, original: string, suggestion: string) => {
+    const start = block.indexOf(original);
+    return trimSuggestionContext(suggestion, block, start, start + original.length, "en-US");
+  };
+
+  it("strips words repeated from before or after the span", () => {
+    expect(trim("BEST FREIND\nEVER", "FREIND", "BEST FRIEND")).toBe("FRIEND");
+    expect(trim("YOUR THE BEST\nDAD EVER", "YOUR", "YOU'RE THE BEST")).toBe("YOU'RE");
+    expect(trim("LES PETITES CHOSE DE LA VIE", "CHOSE", "LES PETITES CHOSES DE LA VIE")).toBe("CHOSES");
+    expect(trim("TU ERES\nMI VIDA", "TU", "TÚ ERES MI VIDA")).toBe("TÚ");
+    expect(trim("Bonne fete papa", "fete", "bonne fête")).toBe("fête");
+  });
+
+  it("keeps real multi-word fixes and at least one word", () => {
+    expect(trim("YOUR THE BEST", "YOUR", "YOU ARE")).toBe("YOU ARE");
+    expect(trim("THERE GOING TO LOVE IT", "THERE", "THEY ARE")).toBe("THEY ARE");
+    expect(trim("GROSSE LIEBE", "GROSSE", "GROSSE LIEBE")).toBe("GROSSE");
+    expect(trim("I LOVE THE THE CAT", "THE THE", "THE")).toBe("THE");
+  });
+
+  it("does not trim when the neighbouring word differs", () => {
+    expect(trim("ICH LIEBE MEINE HUND", "HUND", "MEINEN HUND")).toBe("MEINEN HUND");
+  });
+});
+
+describe("analyzeTexts with over-wide suggestions", () => {
+  it("applies the trimmed suggestion to the corrected text", () => {
+    const result = run(
+      analysis("en-US", ["YOUR THE BEST\nDAD EVER"], [{ original: "YOUR", type: "grammar", suggestions: [{ text: "YOU'RE THE BEST", note_vi: null }] }]),
+    );
+    expect(result.issues[0].suggestions.map((s) => s.text)).toEqual(["YOU'RE"]);
+    expect(result.blocks[0].correctedText).toBe("YOU'RE THE BEST\nDAD EVER");
+  });
+
+  it("drops a suggestion that only repeats the context (nothing left to change)", () => {
+    const result = run(analysis("de-DE", ["GROSSE LIEBE"], [{ original: "GROSSE", suggestions: [{ text: "GROSSE LIEBE", note_vi: null }] }]));
+    expect(result.issues[0].suggestions).toEqual([]);
+    expect(result.blocks[0].correctedText).toBe("GROSSE LIEBE");
   });
 });

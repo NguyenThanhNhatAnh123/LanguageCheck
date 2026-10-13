@@ -178,6 +178,39 @@ function mergeIssues(analysis: ClaudeAnalysis, claude: DraftIssue[], lt: DraftIs
 }
 
 /**
+ * A suggestion replaces exactly the issue's span. Models sometimes repeat the words around
+ * it ("FREIND" → "BEST FRIEND" in "BEST FREIND"), which would duplicate them when applied.
+ * Strips leading words equal to the words just before the span and trailing words equal to
+ * the words just after it (case-insensitive), keeping at least one word.
+ */
+export function trimSuggestionContext(suggestion: string, blockText: string, start: number, end: number, locale: string | undefined): string {
+  const tokens = [...suggestion.matchAll(/\S+/g)];
+  if (tokens.length < 2) return suggestion;
+  const key = (word: string) => word.normalize("NFC").toLocaleLowerCase(locale);
+  const before = blockText.slice(0, start).match(/\S+/g) ?? [];
+  const after = blockText.slice(end).match(/\S+/g) ?? [];
+
+  let lead = 0;
+  for (let k = Math.min(before.length, tokens.length - 1); k > 0; k--) {
+    if (before.slice(-k).every((word, i) => key(word) === key(tokens[i][0]))) {
+      lead = k;
+      break;
+    }
+  }
+  let trail = 0;
+  for (let m = Math.min(after.length, tokens.length - lead - 1); m > 0; m--) {
+    if (after.slice(0, m).every((word, i) => key(word) === key(tokens[tokens.length - m + i][0]))) {
+      trail = m;
+      break;
+    }
+  }
+  if (lead === 0 && trail === 0) return suggestion;
+  const first = tokens[lead];
+  const last = tokens[tokens.length - 1 - trail];
+  return suggestion.slice(first.index, last.index + last[0].length);
+}
+
+/**
  * CLAUDE.md "Phương án sửa": match the case style of `original`, drop duplicates
  * (case-insensitive) and no-op suggestions, Claude's first, at most 3.
  */
@@ -291,7 +324,12 @@ export function analyzeTexts(input: AnalysisInput, dictionary: DictionaryMatcher
     .map((issue) => {
       const block = analysis.blocks[issue.blockIndex];
       const language = blockLanguage(block, analysis);
-      const suggestions = processSuggestions(issue.suggestions, issue.original, block.text, language);
+      const { start, end } = issue;
+      const trimmed =
+        start === null || end === null
+          ? issue.suggestions
+          : issue.suggestions.map((s) => ({ ...s, text: trimSuggestionContext(s.text, block.text, start, end, language) }));
+      const suggestions = processSuggestions(trimmed, issue.original, block.text, language);
       const processed = { ...issue, suggestions };
       if (isGermanSpelledOutUmlaut(processed, language)) return null;
       return applySpanishEnyeRule(applyFrenchCapsAccentRule(processed, language), language);
