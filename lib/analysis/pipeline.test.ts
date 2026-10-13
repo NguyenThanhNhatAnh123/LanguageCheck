@@ -433,6 +433,15 @@ describe("English (not checked)", () => {
     expect(result.uncheckedBlocks).toEqual([1]);
   });
 
+  it("drops Claude's overall note on an English-only image, keeps it on a mixed one", () => {
+    const englishOnly = { ...english(), notes_vi: "YOUR nên là YOU'RE." };
+    expect(run(englishOnly).notesVi).toBeNull();
+
+    const mixed = analysis("de-DE", ["DIE BESTE MAMA", "BEST DAD EVER"], []);
+    mixed.blocks[1] = { ...mixed.blocks[1], language: "en-US" };
+    expect(run({ ...mixed, notes_vi: "Chữ in hoa." }).notesVi).toBe("Chữ in hoa.");
+  });
+
   it("does not count empty English blocks", () => {
     const claude = analysis("de-DE", ["DIE BESTE MAMA", " "], []);
     claude.blocks[1] = { ...claude.blocks[1], language: "en-US" };

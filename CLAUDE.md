@@ -242,6 +242,7 @@ Chữ trên áo thường IN HOA toàn bộ, dùng font cách điệu, câu ng�
 - **en-US: không kiểm** (`UNCHECKED_LANGUAGES` trong `lib/languages.ts`).
   - Claude vẫn nhận diện tiếng Anh (schema giữ giá trị `en-US`), chép lại chữ nhưng được dặn **không báo lỗi**. Lỗi Claude lỡ báo trên block tiếng Anh bị bỏ. LanguageTool không kiểm block này, và block không lấy ngôn ngữ chung của ảnh làm dự phòng.
   - Ảnh có block tiếng Anh không rỗng (`uncheckedBlocks` trong kết quả) tối thiểu là `warning`, kể cả khi chỉ có chữ tiếng Anh. Dưới block hiện "Chữ tiếng Anh: tool không kiểm, cần xem tay." Có lỗi de/fr/es ở block khác thì ảnh vẫn là `error`.
+  - Không nhắc lỗi tiếng Anh trong ghi chú chung (`notes_vi`): prompt dặn Claude không nói tới lỗi hay cách sửa tiếng Anh, và ảnh **chỉ có** chữ tiếng Anh thì code bỏ hẳn ghi chú. Ảnh trộn tiếng Anh với de/fr/es vẫn giữ ghi chú (về phần được kiểm).
   - Từ điển không có ngôn ngữ `en-US`; dòng CSV `en-US` bị báo là dòng lỗi khi nhập.
 - Slogan ngắn thường không có dấu phẩy hay dấu chấm cuối câu: prompt dặn Claude không báo thiếu dấu phẩy/chấm/chấm than (quy tắc `¿ ¡` của es-ES vẫn áp).
 - Thuật ngữ Native American, tên bộ tộc, tên thương hiệu, tên riêng: không bao giờ báo lỗi nếu có trong từ điển.

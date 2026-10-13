@@ -385,9 +385,12 @@ export function analyzeTexts(input: AnalysisInput, dictionary: DictionaryMatcher
     correctedText: correctedText(block.text, issues.filter((issue) => issue.blockIndex === block.index)),
   }));
 
-  const uncheckedBlocks = analysis.blocks
-    .filter((block) => isUncheckedLanguage(block.language) && block.text.trim().length > 0)
-    .map((block) => block.index);
+  const textBlocks = analysis.blocks.filter((block) => block.text.trim().length > 0);
+  const uncheckedBlocks = textBlocks.filter((block) => isUncheckedLanguage(block.language)).map((block) => block.index);
+  // Claude's overall note on an English-only image can only be about English, which the tool
+  // does not check (it tends to point out English mistakes anyway): drop it. On a mixed image
+  // the prompt tells Claude to leave English out of the note.
+  const onlyUnchecked = textBlocks.length > 0 && uncheckedBlocks.length === textBlocks.length;
 
   return {
     result: {
@@ -397,7 +400,7 @@ export function analyzeTexts(input: AnalysisInput, dictionary: DictionaryMatcher
       hasText,
       blocks,
       issues,
-      notesVi: analysis.notes_vi,
+      notesVi: onlyUnchecked ? null : analysis.notes_vi,
       ltStatus: input.ltStatus,
     },
     claudeIssuesNotFound: notFound,

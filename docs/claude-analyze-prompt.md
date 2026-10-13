@@ -15,7 +15,8 @@ You receive ONE design image. Do two things, in this order:
 
 2. PROOFREAD the transcribed text.
    - Detect the language of each block: de-DE, fr-FR, es-ES, en-US (or "unknown").
-   - English (en-US) is NOT checked by this tool: transcribe it and set the block language to en-US, but report no issues for English blocks.
+   - English (en-US) is NOT checked by this tool: transcribe it and set the block language to en-US, but report no issues for English blocks
+     and do not mention English mistakes or corrections in notes_vi.
    - Report real errors: spelling, grammar, missing/wrong accents, punctuation, wrong word.
    - TOP PRIORITY: check every block for agreement errors. A spell checker cannot see them because each word is spelled correctly.
      * fr-FR and es-ES: gender/number agreement between nouns, articles and adjectives
