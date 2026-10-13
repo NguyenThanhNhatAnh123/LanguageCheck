@@ -407,6 +407,34 @@ describe("correctedText", () => {
   });
 });
 
+describe("Claude-only errors without any fix", () => {
+  it("ICH WOG MAL typed grammar, no suggestion: at most Nghi ngờ", () => {
+    const result = run(
+      analysis("de-DE", ["KLAR HABE ICH ZUGENOMMEN ICH WOG MAL 3500 GRAMM"], [{ original: "WOG", type: "grammar", severity: "error", suggestions: [] }]),
+    );
+    expect(result.issues[0].severity).toBe("warning");
+    expect(result.status).toBe("warning");
+  });
+
+  it("also when the only suggestion was a no-op or repeated the context", () => {
+    const result = run(analysis("de-DE", ["GROSSE LIEBE"], [{ original: "GROSSE", type: "grammar", suggestions: [{ text: "GROSSE LIEBE", note_vi: null }] }]));
+    expect(result.status).toBe("warning");
+  });
+
+  it("stays Lỗi when LanguageTool reports the same spot", () => {
+    const result = run(analysis("de-DE", ["NUR FUR DICH"], [{ original: "FUR", type: "accent", suggestions: [] }]), [lt(0, 4, 7, "misspelling", [])]);
+    expect(result.status).toBe("error");
+  });
+
+  it("does not touch errors with a fix (MEINE HUND, KAFFEE MACHEN)", () => {
+    const result = run(
+      analysis("de-DE", ["ABER KAFFEE MACHEN MICH FAST NETT"], [{ original: "MACHEN", type: "grammar", suggestions: [{ text: "MACHT", note_vi: null }] }]),
+    );
+    expect(result.status).toBe("error");
+    expect(result.blocks[0].correctedText).toBe("ABER KAFFEE MACHT MICH FAST NETT");
+  });
+});
+
 describe("English (not checked)", () => {
   const english = (issues: Parameters<typeof analysis>[2] = []) => {
     const claude = analysis("de-DE", ["YOUR THE BEST"], issues);

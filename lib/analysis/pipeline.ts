@@ -291,6 +291,18 @@ function applyLtAcceptedSpellingRule(issue: DraftIssue, language: Language | und
 }
 
 /**
+ * An error only Claude reports, with no suggestion left (after trimming and dropping no-op
+ * ones), is at most a warning: Claude could not say how to fix it, so it is not sure, and
+ * Sonnet has flagged correct forms this way (ICH WOG MAL, typed grammar). Not applied when
+ * LanguageTool reports the same spot.
+ */
+function applyNoFixRule(issue: DraftIssue): DraftIssue {
+  if (issue.severity !== "error" || issue.suggestions.length > 0) return issue;
+  if (issue.sources.length !== 1 || issue.sources[0] !== "claude") return issue;
+  return { ...issue, severity: "warning" };
+}
+
+/**
  * CLAUDE.md "Cách tính status". info issues never count. Text in a language the tool does
  * not check (English) makes the image at least a warning: someone has to check it by hand.
  */
@@ -369,7 +381,7 @@ export function analyzeTexts(input: AnalysisInput, dictionary: DictionaryMatcher
       if (isGermanSpelledOutUmlaut(processed, language)) return null;
       // LanguageTool only checks blocks whose own language is known (groupBlocksByLanguage).
       const ltChecked = input.ltStatus === "online" && isLanguage(block.language);
-      const checked = applyLtAcceptedSpellingRule(processed, language, ltChecked);
+      const checked = applyNoFixRule(applyLtAcceptedSpellingRule(processed, language, ltChecked));
       return applySpanishEnyeRule(applyFrenchCapsAccentRule(checked, language), language);
     })
     .filter((issue): issue is DraftIssue => issue !== null)
