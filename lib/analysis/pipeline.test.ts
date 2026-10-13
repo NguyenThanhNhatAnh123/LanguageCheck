@@ -447,6 +447,29 @@ describe("Claude-only issues without any fix", () => {
   });
 });
 
+describe("spelling errors only LanguageTool reports", () => {
+  it("CULAZO: stays Nghi ngờ, but CALAZO is not applied to the corrected text", () => {
+    const result = run(analysis("es-ES", ["DEBO DE TENER UN CULAZO"], []), [lt(0, 17, 23, "misspelling", ["CALAZO", "COLAZO"])]);
+    expect(result.issues[0]).toMatchObject({ sources: ["lt"], ltOnlySpelling: true });
+    expect(result.status).toBe("warning");
+    expect(result.blocks[0].correctedText).toBe("DEBO DE TENER UN CULAZO");
+  });
+
+  it("LanguageTool-only grammar fixes are still applied", () => {
+    const result = run(analysis("fr-FR", ["MAMAN PARFAIT"], []), [lt(0, 6, 13, "grammar", ["parfaite"])]);
+    expect(result.issues[0].ltOnlySpelling).toBeUndefined();
+    expect(result.blocks[0].correctedText).toBe("MAMAN PARFAITE");
+  });
+
+  it("a spelling error both sources report is applied as usual", () => {
+    const result = run(
+      analysis("de-DE", ["NUR FUR DICH"], [{ original: "FUR", type: "accent", suggestions: [{ text: "FÜR", note_vi: null }] }]),
+      [lt(0, 4, 7, "misspelling", ["FU"])],
+    );
+    expect(result.blocks[0].correctedText).toBe("NUR FÜR DICH");
+  });
+});
+
 describe("English (not checked)", () => {
   const english = (issues: Parameters<typeof analysis>[2] = []) => {
     const claude = analysis("de-DE", ["YOUR THE BEST"], issues);

@@ -61,6 +61,12 @@ export interface Issue {
    * warning, and its fix is not applied to "Chữ sau khi sửa" (the word is probably right).
    */
   ltAccepted?: boolean;
+  /**
+   * Spelling error only LanguageTool reports, on text Claude read without flagging it (often
+   * slang or a name LanguageTool does not know, CULAZO): stays a warning so someone looks,
+   * but its fix is not applied to "Chữ sau khi sửa".
+   */
+  ltOnlySpelling?: boolean;
 }
 
 export interface ResultBlock {

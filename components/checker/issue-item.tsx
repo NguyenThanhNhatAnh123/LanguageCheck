@@ -88,6 +88,7 @@ export function IssueItem({ issue, language }: { issue: Issue; language: Languag
         <span>Nguồn: {sourceLabel(issue.sources)}</span>
         {issue.intentionalPossible && <span>· Có thể cố ý</span>}
         {issue.ltAccepted && <span>· LanguageTool coi là đúng, chưa áp vào chữ sửa</span>}
+        {issue.ltOnlySpelling && <span>· Chỉ LanguageTool báo, chưa áp vào chữ sửa</span>}
         {issue.start === null && <span>· Không định vị được trong chữ</span>}
         {language && choice && (
           <span className="ml-auto">

@@ -291,6 +291,17 @@ function applyLtAcceptedSpellingRule(issue: DraftIssue, language: Language | und
 }
 
 /**
+ * A spelling error only LanguageTool reports: Claude read the same text and did not flag it,
+ * which in practice means slang, a brand or a name LanguageTool does not know (CULAZO →
+ * CALAZO). It stays a warning, but the fix is not applied to "Chữ sau khi sửa". Adding the
+ * word to the dictionary removes it for good.
+ */
+function markLtOnlySpelling(issue: DraftIssue): DraftIssue {
+  const ltOnly = issue.sources.length === 1 && issue.sources[0] === "lt";
+  return ltOnly && issue.ltIssueType === "misspelling" ? { ...issue, ltOnlySpelling: true } : issue;
+}
+
+/**
  * An issue only Claude reports, with no suggestion left (after trimming and dropping no-op
  * ones), not marked possibly intentional and not an unreadable spot, is only a note (info):
  * Claude could not say how to fix it. Sonnet creates such issues on correct text and then
@@ -328,7 +339,7 @@ export function computeStatus(
   return isWarning || hasUncheckedText ? "warning" : "ok";
 }
 
-/** Applies the first suggestion of every located, non-intentional error/warning (except ltAccepted ones). */
+/** Applies the first suggestion of every located, non-intentional error/warning (except ltAccepted / ltOnlySpelling ones). */
 export function correctedText(blockText: string, issues: readonly Issue[]): string {
   const edits = issues
     .filter(
@@ -336,6 +347,7 @@ export function correctedText(blockText: string, issues: readonly Issue[]): stri
         (issue.severity === "error" || issue.severity === "warning") &&
         !issue.intentionalPossible &&
         !issue.ltAccepted &&
+        !issue.ltOnlySpelling &&
         issue.start !== null &&
         issue.end !== null &&
         issue.suggestions.length > 0,
@@ -384,7 +396,7 @@ export function analyzeTexts(input: AnalysisInput, dictionary: DictionaryMatcher
       if (isGermanSpelledOutUmlaut(processed, language)) return null;
       // LanguageTool only checks blocks whose own language is known (groupBlocksByLanguage).
       const ltChecked = input.ltStatus === "online" && isLanguage(block.language);
-      const checked = applyNoFixRule(applyLtAcceptedSpellingRule(processed, language, ltChecked));
+      const checked = markLtOnlySpelling(applyNoFixRule(applyLtAcceptedSpellingRule(processed, language, ltChecked)));
       return applySpanishEnyeRule(applyFrenchCapsAccentRule(checked, language), language);
     })
     .filter((issue): issue is DraftIssue => issue !== null)
@@ -440,6 +452,7 @@ function toIssue(draft: DraftIssue, index: number): Issue {
     ltMessages: draft.ltMessages,
     suggestions: draft.suggestions,
     ...(draft.ltAccepted ? { ltAccepted: true } : {}),
+    ...(draft.ltOnlySpelling ? { ltOnlySpelling: true } : {}),
   };
 }
 
