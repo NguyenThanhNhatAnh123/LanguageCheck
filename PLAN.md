@@ -321,6 +321,11 @@ Làm Giai đoạn 5:
 - Ảnh đúng bị xếp Nghi ngờ (trong giới hạn ≤ 2): `de-haida-stolz.png` (tên riêng chưa có trong từ điển), `08-sk7535-black.jpg` (`WOG`, LanguageTool coi là đúng).
 - de/fr/es: bắt đúng 12/12 lỗi, đều ở Lỗi, kể cả 3 ca mới chuyển sang (`GUTE MENSCH` chữ mòn, `EL MEJOR MAMÁ` chữ nghiêng, `CUMPLEANOS` font máy chữ). "Chữ sau khi sửa" đúng 28/28.
 - Tag cổ áo tiếng Anh (`SIZE M / 100% COTTON`) được bỏ qua đúng, không làm ảnh thành Nghi ngờ.
+- **Tắt ghi chú lỗi tiếng Anh** (`3e7915c`). Đã kiểm với Claude thật: ảnh chỉ có tiếng Anh không còn ghi chú; ảnh trộn (`NUR FUR DICH` + `YOUR THE BEST DAD`) vẫn bắt `FUR` và không nhắc tiếng Anh.
+- Chạy lại 2 bộ sau khi đổi prompt: vẫn ĐẠT.
+  - Bộ thật lần này có **2** ảnh đúng ở Nghi ngờ, vừa chạm giới hạn: `WOG`, và `WUSSTEST` (`14-sk5231-black.jpg`).
+  - Ở cả 2 ca, Claude báo một dạng động từ đúng là lỗi chính tả, rồi tự viết trong giải thích là "đúng, không có lỗi". Quy tắc LanguageTool chấp nhận giữ chúng ở mức Nghi ngờ.
+  - Khi thêm mockup thật, kiểu báo nhầm này có thể vượt giới hạn ≤ 2.
 
 **Đáp án bộ thật:** cả 8 dòng đang là `source = claude-draft` (Claude Code soạn từ việc đọc ảnh). Sẽ được thay bằng chữ gốc từ file thiết kế. Eval cảnh báo khi còn dòng `claude-draft`.
 
