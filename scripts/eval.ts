@@ -16,6 +16,7 @@ import path from "node:path";
 import { loadEnvConfig } from "@next/env";
 import sharp from "sharp";
 import type { AnalyzeApiResponse } from "../lib/analysis/api-types";
+import type { LtStatus } from "../lib/analysis/types";
 import { analyzeMockup } from "../lib/analysis/analyze-mockup";
 import { getClaudeRuntime } from "../lib/claude";
 import { parseCsv } from "../lib/dictionary/csv";
@@ -49,10 +50,13 @@ interface CaseRun extends EvalCase {
   model: string | null;
   attempts: number;
   tokens: { input: number; cacheRead: number; cacheWrite: number; output: number } | null;
+  /** LanguageTool for this image: online, offline (Claude only) or skipped (no known language). */
+  ltStatus: LtStatus | null;
 }
 
 function printVerbose(response: AnalyzeApiResponse): void {
   if (!response.ok) return;
+  console.log(`      LanguageTool: ${response.result.ltStatus}`);
   for (const block of response.result.blocks) {
     const corrected = block.correctedText !== block.text ? `  →  ${JSON.stringify(block.correctedText)}` : "";
     console.log(`      [${block.language}] ${JSON.stringify(block.text)}${corrected}`);
@@ -134,7 +138,7 @@ async function main(): Promise<void> {
           output: response.usage.outputTokens,
         }
       : null;
-    cases.push({ file, expectedError, expectedText, status, correctedText, language, mustBeError, ms, model: response.ok ? response.model : null, attempts: response.attempts, tokens });
+    cases.push({ file, expectedError, expectedText, status, correctedText, language, mustBeError, ms, model: response.ok ? response.model : null, attempts: response.attempts, tokens, ltStatus: response.ok ? response.result.ltStatus : null });
 
     const flagged = status === "error" || status === "warning";
     const verdict = status === null ? "THẤT BẠI" : flagged === expectedError ? "đúng" : expectedError ? "BỎ SÓT" : "BÁO NHẦM";
@@ -156,9 +160,12 @@ async function main(): Promise<void> {
     output: average((c) => c.tokens?.output ?? 0),
   };
   const retried = cases.filter((c) => c.attempts > 1).length;
+  const ltCount = (status: LtStatus) => cases.filter((c) => c.ltStatus === status).length;
 
   console.log("\n=== Tổng kết ===");
   console.log(`Số ảnh:                      ${summary.cases} (thất bại ${summary.failed}, phải gọi lại ${retried})`);
+  console.log(`LanguageTool:                chạy ${ltCount("online")}, lỗi/tắt ${ltCount("offline")}, bỏ qua (không rõ ngôn ngữ / không có chữ) ${ltCount("skipped")}`);
+  if (ltCount("offline") > 0) console.log("  CẢNH BÁO: có ảnh chỉ được Claude kiểm, kết quả không đại diện cho tool khi LanguageTool chạy.");
   console.log(`Tỉ lệ bắt đúng:              ${formatRate(summary.detection)}   chỉ tính "Lỗi": ${formatRate(summary.detectionStrict)}`);
   console.log(`Tỉ lệ báo nhầm:              ${formatRate(summary.falseAlarm)}   chỉ tính "Lỗi": ${formatRate(summary.falseAlarmStrict)}`);
   console.log(`Chữ sau khi sửa khớp đáp án: ${formatRate(summary.textMatch)}`);
