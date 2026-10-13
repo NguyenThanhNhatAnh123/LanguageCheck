@@ -400,6 +400,27 @@ Làm Giai đoạn 5:
   - **(f)** Issue chỉ Claude báo, không có phương án, không đánh dấu "có thể cố ý", không phải `ocr_uncertain` → chỉ là Ghi chú (không tính vào status). Thay cho (c).
   - Tên riêng như `HAIDA` (Claude đánh dấu "có thể cố ý") vẫn ở Nghi ngờ để nhắc thêm vào từ điển.
 
+**Đã áp (f) thay cho (c) (`5c02c73`), chạy lại 2026-10-13:**
+
+| Bộ | de-DE | fr-FR | es-ES | Tiếng Anh | s/ảnh | Kết luận |
+|---|---|---|---|---|---|---|
+| Tổng hợp (29) | ĐẠT | ĐẠT | ĐẠT | ĐẠT | 3,7 | **ĐẠT** |
+| Thật (13: 11 de, 2 fr) | ĐẠT | ĐẠT | — | — | 4,8 | **ĐẠT** (tạm thời: đáp án `claude-draft`) |
+
+- `ICH WOG MAL` giờ là Ghi chú, ảnh ở Không lỗi.
+- Ảnh đúng ở Nghi ngờ: còn **1** ở mỗi bộ (dưới giới hạn 2).
+  - `5.png` (`ERWACHSEN VERHALTEN`): lần này Claude đánh dấu "có thể cố ý" nên (f) không áp. Ca này Claude chấm dao động giữa các lần.
+  - `de-haida-stolz.png`: tên riêng, đúng spec.
+- Lỗi thật:
+  - Bộ tổng hợp: 13/13 vào Lỗi/Nghi ngờ; 12/12 lỗi de/fr/es ở Lỗi; mọi ca `must_error` ở Lỗi.
+  - Bộ thật: `ÉPUISER` (cả 2 nguồn) và `KAFFEE MACHEN` (chỉ Claude) đều ở Lỗi, phương án được áp.
+  - "Chữ sau khi sửa" đúng 13/13 và 28/28.
+- LanguageTool cùng báo 11 issue ở bộ tổng hợp; LanguageTool chạy ở mọi ảnh có chữ.
+- **Còn thiếu trước khi mở cổng Giai đoạn 6:**
+  - Mockup thật tiếng Tây Ban Nha (chưa có).
+  - Thêm mockup thật có lỗi (mới có 2).
+  - Thay đáp án `claude-draft` bằng chữ gốc từ file thiết kế.
+
 **Đáp án bộ thật:** cả 8 dòng đang là `source = claude-draft` (Claude Code soạn từ việc đọc ảnh). Sẽ được thay bằng chữ gốc từ file thiết kế. Eval cảnh báo khi còn dòng `claude-draft`.
 
 ---
