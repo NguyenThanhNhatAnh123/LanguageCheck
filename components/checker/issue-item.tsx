@@ -1,9 +1,10 @@
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, TypeIcon } from "lucide-react";
 import { AddToDictionaryButton } from "@/components/dictionary/add-to-dictionary-button";
 import { AddWordsPopover } from "@/components/dictionary/add-words-popover";
 import { SeverityBadge } from "@/components/status-badge";
 import { sourceLabel } from "@/lib/analysis/labels";
 import { isSpellingIssue } from "@/lib/analysis/pipeline";
+import { addedSpecialCharacters } from "@/lib/analysis/special-chars";
 import type { Issue } from "@/lib/analysis/types";
 import { splitWords } from "@/lib/dictionary/split-words";
 import type { Language } from "@/lib/languages";
@@ -26,6 +27,8 @@ export function IssueItem({ issue, language }: { issue: Issue; language: Languag
   const ltOnly = !issue.sources.includes("claude");
   const notes = issue.suggestions.filter((suggestion) => suggestion.noteVi);
   const choice = language ? dictionaryChoice(issue) : null;
+  // The fix that goes into "Chữ sau khi sửa" adds Ä Ö Ü ß É È Ç Ñ ¿ ¡…: maybe the font lacks them.
+  const specialChars = issue.suggestions.length > 0 ? addedSpecialCharacters(issue.original, issue.suggestions[0].text) : [];
 
   return (
     <li className="space-y-2 py-3 first:pt-0 last:pb-0">
@@ -69,6 +72,15 @@ export function IssueItem({ issue, language }: { issue: Issue; language: Languag
             </li>
           ))}
         </ul>
+      )}
+
+      {specialChars.length > 0 && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="font-hint">
+          <TypeIcon className="size-3.5 shrink-0" aria-hidden />
+          <span>
+            Nếu font không có ký tự này (<span className="font-mono text-foreground">{specialChars.join(" ")}</span>), hãy đổi font.
+          </span>
+        </p>
       )}
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
