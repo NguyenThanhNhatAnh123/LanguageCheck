@@ -61,6 +61,12 @@ describe("languageToolText (Claude's normal_case for ALL CAPS blocks)", () => {
     expect(languageToolText(block(0, "ABUELA ORGULLOSO", "es-ES", "Abuela orgullosa"), "es-ES")).toBe("ABUELA ORGULLOSO");
   });
 
+  it("accepts normal_case with the lines joined by spaces (same offsets)", () => {
+    const text = "ICH BIN KEIN\nMORGENMENSCH\nABER KAFFEE MACHEN\nMICH FAST NETT";
+    const normal = "Ich bin kein Morgenmensch aber Kaffee machen mich fast nett";
+    expect(languageToolText(block(0, text, "de-DE", normal), "de-DE")).toBe(normal);
+  });
+
   it("groups the normal-case text with the same offsets", () => {
     const [group] = groupBlocksByLanguage([block(0, "EL MEJOR\nMAMÁ", "es-ES", "El mejor\nmamá"), block(1, "TE QUIERO", "es-ES", "Te quiero")]);
     expect(group.text).toBe("El mejor\nmamá\nTe quiero");
@@ -170,6 +176,18 @@ describe("applyLtLanguageRules", () => {
     expect(applyLtLanguageRules(match(19, 22, { issueType: "uncategorized", ruleId: "VIRG_NON_TROUVEE", categoryId: "PONCTUATION_VIRGULE", replacements: [", J'"] }), fr, "fr-FR")).toEqual({ action: "drop" });
     const de = block(0, "ICH BIN NICHT STUR ICH HABE NUR", "de-DE");
     expect(applyLtLanguageRules(match(4, 27, { issueType: "uncategorized", ruleId: "KOMMA_ZWISCHEN_HAUPT_UND_NEBENSATZ", categoryId: "HILFESTELLUNG_KOMMASETZUNG" }), de, "de-DE")).toEqual({ action: "drop" });
+  });
+
+  it("drops missing-comma matches found on the normal-case copy of an ALL CAPS block", () => {
+    const fr = block(0, "JE NE SUIS PAS TÊTU\nJ'AI JUSTE RAISON", "fr-FR", "Je ne suis pas têtu\nj'ai juste raison");
+    expect(applyLtLanguageRules(match(19, 22, { issueType: "uncategorized", ruleId: "VIRG_NON_TROUVEE", replacements: [", j'"] }), fr, "fr-FR")).toEqual({ action: "drop" });
+    const de = block(0, "WIR LÖSEN PROBLEME\nVON DENEN DU", "de-DE", "Wir lösen Probleme\nvon denen du");
+    expect(applyLtLanguageRules(match(10, 28, { issueType: "uncategorized", ruleId: "KOMMA_REL", replacements: ["Probleme, von denen"] }), de, "de-DE")).toEqual({ action: "drop" });
+  });
+
+  it("fr-FR missing space before ! is info also on a normal-case copy", () => {
+    const b = block(0, "BONNE JOURNÉE!", "fr-FR", "Bonne journée!");
+    expect(applyLtLanguageRules(match(6, 14, { issueType: "typographical", replacements: ["journée !"] }), b, "fr-FR")).toEqual({ action: "keep", severity: "info" });
   });
 
   it("keeps ¿ ¡ and missing-space matches, which are not about commas", () => {

@@ -26,7 +26,10 @@ export interface LanguageGroup {
 export function languageToolText(block: ClaudeBlock, language: Language): string {
   const normal = block.normal_case;
   if (normal === null || normal === block.text || normal.length !== block.text.length) return block.text;
-  return normal.toLocaleLowerCase(language) === block.text.toLocaleLowerCase(language) ? normal : block.text;
+  // Same letters at every position, ignoring case; any whitespace matches any whitespace
+  // (Claude sometimes joins the lines with spaces, which keeps the offsets).
+  const shape = (text: string) => text.toLocaleLowerCase(language).replace(/\s/g, " ");
+  return shape(normal) === shape(block.text) && normal.toLocaleLowerCase(language).length === normal.length ? normal : block.text;
 }
 
 /** One group per language present; "unknown" and English blocks are skipped (Claude only). */
@@ -127,7 +130,8 @@ const COMMA_RULE = /KOMMA|COMMA|VIRG|(^|_)COMA(_|$)/;
  * without suggestions (KOMMA_ZWISCHEN_HAUPT_UND_NEBENSATZ just says "insert a comma here").
  */
 function isMissingCommaMatch(match: LtBlockMatch, original: string): boolean {
-  const withoutCommas = (text: string) => text.replace(/[,\s]/g, "");
+  // Case-insensitive: LanguageTool may have checked the normal-case copy of an ALL CAPS block.
+  const withoutCommas = (text: string) => text.replace(/[,\s]/g, "").toLowerCase();
   const commas = (text: string) => (text.match(/,/g) ?? []).length;
   if (match.replacements.some((r) => withoutCommas(r) === withoutCommas(original) && commas(r) > commas(original))) return true;
   return match.replacements.length === 0 && (COMMA_RULE.test(match.ruleId) || COMMA_RULE.test(match.categoryId ?? ""));
@@ -164,8 +168,9 @@ export function applyLtLanguageRules(match: LtBlockMatch, block: ClaudeBlock, la
       return { action: "keep", severity };
 
     case "fr-FR":
-      // Missing space before ! ? : ; → info.
-      if (match.replacements.some((replacement) => replacement.replace(/\s/g, "") === original.replace(/\s/g, "") && replacement !== original)) {
+      // Missing space before ! ? : ; → info. Case-insensitive (normal-case copy, see above).
+      const noSpace = (text: string) => text.replace(/\s/g, "").toLocaleLowerCase(language);
+      if (match.replacements.some((replacement) => noSpace(replacement) === noSpace(original) && replacement.length !== original.length)) {
         return { action: "keep", severity: "info" };
       }
       return { action: "keep", severity };
