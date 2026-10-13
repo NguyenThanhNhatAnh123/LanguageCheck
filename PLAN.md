@@ -484,7 +484,7 @@ Làm Giai đoạn 6:
 
 **Bạn tự làm trên máy server** (lệnh đầy đủ ở `README.md`, mục "Cài lên máy server"; mọi lệnh chạy trong PowerShell quyền Administrator):
 
-1. Clone repo về `C:\pod-qa`, chạy `npm ci`, tạo `.env.local` theo `.env.example` (mật khẩu tạo bằng `npm run hash-password`), khóa quyền đọc file bằng `icacls`. Kiểm tra bằng `scripts\deploy.ps1 -NoService -CheckOnly`. Rồi chạy `npm run build` và `npm run db:migrate`.
+1. Clone repo về `C:\pod-qa`, chạy `npm ci`, tạo `.env.local` theo `.env.example` (mật khẩu chung **tối thiểu 16 ký tự ngẫu nhiên**, tạo hash bằng `npm run hash-password`), khóa quyền đọc file bằng `icacls`. Kiểm tra bằng `scripts\deploy.ps1 -NoService -CheckOnly`. Rồi chạy `npm run build` và `npm run db:migrate`.
 2. Cài app thành service:
    ```powershell
    nssm install PodQA "<đường dẫn node.exe>" "node_modules\next\dist\bin\next start -H 127.0.0.1 -p 3000"
@@ -539,7 +539,7 @@ Làm sau khi tool đã chạy ổn định. Mục đích là để LanguageTool 
 - **Nhân viên:** mở `https://qa.<domain>`, đăng nhập bằng tài khoản chung. Không cần cài gì.
 - **Cập nhật tool:** trên máy server chạy `scripts\deploy.ps1`.
 - **Đổi mật khẩu** (ví dụ khi có người nghỉ việc):
-  1. Chạy `npm run hash-password` để tạo hash mới.
+  1. Chạy `npm run hash-password` để tạo hash mới (mật khẩu tối thiểu 16 ký tự ngẫu nhiên).
   2. Sửa `APP_PASSWORD_HASH_B64` và tăng `SESSION_VERSION` trong `.env.local`.
   3. Chạy `nssm restart PodQA`.
 - **Tool không vào được:**

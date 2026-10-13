@@ -60,7 +60,7 @@ Trong `.env.local`:
 
 - `ANTHROPIC_API_KEY`: key riêng của tool (đã đặt giới hạn chi tiêu theo tháng trên Anthropic Console).
 - `CLAUDE_MODEL=claude-sonnet-5-5` và `CLAUDE_ANALYZE_EFFORT=low` (đã chọn qua eval). Nếu mockup thật bị đọc sai hoặc báo nhầm nhiều, thử `CLAUDE_MODEL=claude-opus-5-5` rồi `nssm restart PodQA` (không cần sửa code; Opus chậm hơn khoảng 30–40%, giá mỗi token cao hơn).
-- `APP_USERNAME` và `APP_PASSWORD_HASH_B64`: chạy `npm run hash-password`, nhập mật khẩu chung, dán dòng in ra.
+- `APP_USERNAME` và `APP_PASSWORD_HASH_B64`: chạy `npm run hash-password`, nhập mật khẩu chung, dán dòng in ra. **Mật khẩu tài khoản chung tối thiểu 16 ký tự ngẫu nhiên** (script cảnh báo nếu ngắn hơn), ví dụ tạo bằng `node -e "console.log(require('crypto').randomBytes(12).toString('base64url'))"`.
 - `SESSION_SECRET`: chuỗi ngẫu nhiên, tạo bằng `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`.
 - `SESSION_VERSION=1`, `LT_URL=http://127.0.0.1:8081`, `DATABASE_PATH=./data/app.db`.
 - **Không** có `CLAUDE_MOCK`. Thiếu key, thiếu `CLAUDE_MODEL` hoặc có `CLAUDE_MOCK=1` thì app tự dừng khi khởi động (xem `app.log`).
@@ -148,7 +148,7 @@ nssm start PodQA
 
 ## Vận hành
 
-- **Đổi mật khẩu** (ví dụ khi có người nghỉ việc): `npm run hash-password`, sửa `APP_PASSWORD_HASH_B64` và tăng `SESSION_VERSION` trong `.env.local`, rồi `nssm restart PodQA`. Mọi máy đang đăng nhập bị đăng xuất.
+- **Đổi mật khẩu** (ví dụ khi có người nghỉ việc; mật khẩu mới cũng tối thiểu 16 ký tự ngẫu nhiên): `npm run hash-password`, sửa `APP_PASSWORD_HASH_B64` và tăng `SESSION_VERSION` trong `.env.local`, rồi `nssm restart PodQA`. Mọi máy đang đăng nhập bị đăng xuất.
 - **Tool không vào được:** mở `services.msc`, xem 3 service **PodQA**, **LanguageTool**, **Cloudflared**. Log ở `C:\pod-qa\app.log` và `C:\LanguageTool\lt.log`. Vẫn không được thì khởi động lại máy.
 - **LanguageTool tắt:** app vẫn chạy, kết quả chỉ từ Claude và có banner báo lỗi. Bật lại thì app tự nạp sẵn ngôn ngữ.
 - **Chi phí:** trang `/usage` (số ảnh, token theo ngày và model). Chi phí thực tế xem trên Anthropic Console; giới hạn chi tiêu theo tháng ở đó là chốt chặn cuối cùng.
@@ -156,7 +156,7 @@ nssm start PodQA
 ## Bảo mật (tóm tắt)
 
 - App và LanguageTool chỉ nghe `127.0.0.1`; ra internet chỉ qua Cloudflare Tunnel, không mở cổng nào.
-- Một tài khoản chung, mật khẩu băm bcrypt, cookie phiên ký HS256 (`httpOnly`, `secure`, `sameSite=lax`, 30 ngày), khóa 15 phút sau 5 lần sai theo IP.
+- Một tài khoản chung, mật khẩu băm bcrypt, cookie phiên ký HS256 (`httpOnly`, `secure`, `sameSite=lax`, 30 ngày), mỗi lần sai làm chậm lần sau (1s, 2s, 4s… tối đa 10s), khóa 5 phút sau 10 lần sai theo IP. Mật khẩu chung tối thiểu 16 ký tự ngẫu nhiên.
 - Proxy chặn mọi trang và API khi chưa đăng nhập, **và** từng route API tự kiểm tra phiên. Test `app/api/routes-auth.test.ts` bắt buộc điều này cho mọi route mới.
 - Ảnh chỉ nằm trong bộ nhớ trong lúc xử lý; không ghi ra đĩa, không vào database. Log chỉ có số lượng và lỗi kỹ thuật, không có tên file, chữ trên ảnh hay secret.
 - Header bảo mật cơ bản (`X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`), không có `X-Powered-By`.

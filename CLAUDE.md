@@ -43,7 +43,11 @@ Nhân viên (trình duyệt) ──► https://qa.<domain> ──► Cloudflare 
   - Có script `npm run hash-password` để tạo giá trị này.
 - Đăng nhập đúng thì tạo cookie phiên đã ký (`SESSION_SECRET`): `httpOnly`, `secure`, `sameSite=lax`, hạn 30 ngày. Cookie chứa `SESSION_VERSION`. Muốn đá văng mọi máy đang đăng nhập (ví dụ khi đổi mật khẩu) thì tăng `SESSION_VERSION`.
 - Proxy (`proxy.ts`) chặn mọi route trừ `/login` và static. Mọi route API **tự** kiểm tra phiên ở từng handler (`if (!(await hasValidSession())) return unauthorizedResponse();`); test `app/api/routes-auth.test.ts` bắt lỗi nếu route mới quên. Route công khai duy nhất: `/api/auth/login` và `/api/auth/logout`.
-- Chống dò mật khẩu: sai 5 lần thì khóa 15 phút theo IP. Lấy IP từ header `CF-Connecting-IP`, lưu trong bộ nhớ là đủ.
+- Chống dò mật khẩu, theo IP (lấy từ header `CF-Connecting-IP`, lưu trong bộ nhớ là đủ; `lib/auth/login-attempts.ts`):
+  - Mỗi lần sai làm chậm lần sau: phản hồi bị giữ 1s, 2s, 4s, 8s, rồi 10s mỗi lần. Lần thử tới sớm hơn độ trễ đó phải đợi, nên đoán song song cũng bị chậm.
+  - Sai 10 lần trong 15 phút thì khóa IP đó 5 phút. Đăng nhập đúng thì xóa bộ đếm.
+  - Lý do ngưỡng rộng và khóa ngắn: cả văn phòng chung một IP công cộng, một người gõ sai không được khóa mọi người lâu. Độ trễ và mật khẩu dài ngẫu nhiên giữ cho việc đoán vẫn chậm.
+- Mật khẩu tài khoản chung: **tối thiểu 16 ký tự ngẫu nhiên**. `npm run hash-password` từ chối dưới 8 ký tự và cảnh báo dưới 16 (`lib/auth/password-policy.ts`).
 - Không có tài khoản riêng từng người, không có bước chọn tên.
 
 ## Luồng xử lý

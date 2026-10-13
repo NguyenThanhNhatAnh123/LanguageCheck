@@ -3,10 +3,9 @@
 // The bcrypt hash is base64-encoded because Next.js expands `$` in .env files.
 import { createInterface } from "node:readline";
 import { hash } from "bcryptjs";
+import { checkPassword } from "../lib/auth/password-policy";
 
 const BCRYPT_COST = 12;
-const MIN_LENGTH = 8;
-const BCRYPT_MAX_BYTES = 72;
 
 async function main(): Promise<void> {
   let password: string;
@@ -20,10 +19,9 @@ async function main(): Promise<void> {
     password = await readFirstLine();
   }
 
-  if (password.length < MIN_LENGTH) fail(`Mật khẩu cần ít nhất ${MIN_LENGTH} ký tự.`);
-  if (Buffer.byteLength(password, "utf8") > BCRYPT_MAX_BYTES) {
-    fail(`Mật khẩu dài tối đa ${BCRYPT_MAX_BYTES} byte (giới hạn của bcrypt).`);
-  }
+  const check = checkPassword(password);
+  if (check.error) fail(check.error);
+  if (check.warning) console.error(`\n${check.warning}`);
 
   const hashed = await hash(password, BCRYPT_COST);
   console.log("\nDán dòng sau vào .env.local, rồi tăng SESSION_VERSION nếu muốn đăng xuất mọi máy:\n");

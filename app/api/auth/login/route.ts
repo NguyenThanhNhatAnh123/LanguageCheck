@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { getClientIp } from "@/lib/auth/client-ip";
 import { verifyCredentials } from "@/lib/auth/credentials";
-import { clearFailures, getLockRemainingMs, recordFailure } from "@/lib/auth/login-attempts";
+import { clearFailures, getAttemptWaitMs, getLockRemainingMs, recordFailure } from "@/lib/auth/login-attempts";
 import { createSessionToken, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth/session";
 
 const loginSchema = z.object({
@@ -16,6 +16,15 @@ export async function POST(request: NextRequest) {
   const lockedMs = getLockRemainingMs(ip);
   if (lockedMs > 0) return lockedResponse(lockedMs);
 
+  // An attempt that comes before the delay of the previous failure is over waits for it, so
+  // parallel guesses are slowed down too. The lock may have started meanwhile.
+  const waitMs = getAttemptWaitMs(ip);
+  if (waitMs > 0) {
+    await sleep(waitMs);
+    const lockedAfterWait = getLockRemainingMs(ip);
+    if (lockedAfterWait > 0) return lockedResponse(lockedAfterWait);
+  }
+
   const body: unknown = await request.json().catch(() => null);
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
@@ -24,7 +33,9 @@ export async function POST(request: NextRequest) {
 
   const ok = await verifyCredentials(parsed.data.username, parsed.data.password);
   if (!ok) {
-    const { lockedForMs, remainingAttempts } = recordFailure(ip);
+    const { lockedForMs, remainingAttempts, delayMs } = recordFailure(ip);
+    // Every wrong login is answered later than the previous one (1s, 2s, 4s… max 10s).
+    await sleep(delayMs);
     if (lockedForMs > 0) {
       console.warn("[auth] login locked after repeated failures");
       return lockedResponse(lockedForMs);
@@ -40,6 +51,8 @@ export async function POST(request: NextRequest) {
   response.cookies.set(SESSION_COOKIE, await createSessionToken(), sessionCookieOptions);
   return response;
 }
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function lockedResponse(remainingMs: number): NextResponse {
   const minutes = Math.ceil(remainingMs / 60_000);
