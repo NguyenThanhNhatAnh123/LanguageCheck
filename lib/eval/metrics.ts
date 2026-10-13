@@ -1,4 +1,5 @@
 import type { AnalysisStatus } from "@/lib/analysis/types";
+import { isUncheckedLanguage } from "@/lib/languages";
 
 // Scoring for `npm run eval`: compares each test image's status with expected.csv.
 // "Flagged" means the image reaches the user: status error or warning.
@@ -151,6 +152,14 @@ function languageCriteria(language: string, cases: readonly EvalCase[]): Criteri
       criterion(
         "Ca bắt buộc (ANO, FUR, sai giống/số…) ở Lỗi",
         withError.filter((c) => c.mustBeError && c.status !== "error").map((c) => `${c.file}: phải là Lỗi (${statusLabel(c)})`),
+      ),
+    );
+  }
+  if (isUncheckedLanguage(language)) {
+    results.push(
+      criterion(
+        "Ảnh chữ không kiểm (tiếng Anh) ở Nghi ngờ",
+        cases.filter((c) => c.status !== "warning").map((c) => `${c.file}: phải là Nghi ngờ (${statusLabel(c)})`),
       ),
     );
   }

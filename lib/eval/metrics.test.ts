@@ -117,9 +117,13 @@ describe("evaluateCriteria", () => {
     expect(report.overall[0].pass).toBe(false);
   });
 
-  it("applies the detection criteria to de/fr/es only", () => {
-    const report = evaluateCriteria([c(true, "ok", { language: "en-US" })], 1000);
-    expect(report.byLanguage[0].criteria.map((r) => r.label)).not.toContain("Mọi lỗi cố ý ở Lỗi hoặc Nghi ngờ");
-    expect(report.pass).toBe(true);
+  it("English (not checked): no detection criteria, but the image must be Nghi ngờ", () => {
+    const flagged = evaluateCriteria([c(true, "warning", { language: "en-US" })], 1000);
+    expect(flagged.byLanguage[0].criteria.map((r) => r.label)).not.toContain("Mọi lỗi cố ý ở Lỗi hoặc Nghi ngờ");
+    expect(flagged.pass).toBe(true);
+
+    const missed = evaluateCriteria([c(true, "ok", { language: "en-US", file: "en.png" })], 1000);
+    expect(missed.pass).toBe(false);
+    expect(missed.byLanguage[0].criteria.find((r) => !r.pass)?.failures).toEqual(["en.png: phải là Nghi ngờ (kết quả ok)"]);
   });
 });
