@@ -145,7 +145,7 @@ Tra docs Anthropic SDK hiện hành (vision, tool use / structured outputs, prom
   - Viết phương án lấn sang từ bên cạnh mà code không cắt được: `MEINE HUND` → `MEINE MEINEN HUND`.
   - Một ảnh sai schema 2 lần nên thất bại.
 - **Opus 5.5** (thử 8 ảnh khó, prompt cũ): không hơn Sonnet, chậm hơn.
-- **Đã chọn Sonnet 5.5 + effort `low`.** Không chia model theo độ khó: Haiku sai ở cả ảnh dễ, Opus không cải thiện ảnh khó, và muốn phân loại thì phải gọi thêm một lượt cho mỗi ảnh.
+- **Đề xuất: Sonnet 5.5 + effort `low`** (đang là cấu hình mặc định; chờ duyệt). Không chia model theo độ khó: Haiku sai ở cả ảnh dễ, Opus không cải thiện ảnh khó, và muốn phân loại thì phải gọi thêm một lượt cho mỗi ảnh.
 - **Các mục khác:**
   - API chấp nhận schema, `fallbacks` và `effort`. Không có lần nào sai schema hay bị cắt ở `max_tokens` với Sonnet.
   - Cache có tác dụng: khoảng 2.900 token đọc cache mỗi ảnh, cộng 1.140 token vào và khoảng 270 token ra.
