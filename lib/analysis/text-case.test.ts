@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, isAllCaps, isMissingEnye, isUmlautSpelledOut } from "./text-case";
+import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, differsOnlyBySpecialCharacters, isAllCaps, isMissingEnye, isUmlautSpelledOut } from "./text-case";
 
 describe("caseStyleOf", () => {
   it("detects upper, capitalized and lower originals", () => {
@@ -93,5 +93,21 @@ describe("isMissingEnye", () => {
     expect(isMissingEnye("AÑO", "AÑO", "es-ES")).toBe(false);
     expect(isMissingEnye("TU", "TÚ", "es-ES")).toBe(false);
     expect(isMissingEnye("ANO", "AÑOS", "es-ES")).toBe(false);
+  });
+});
+
+describe("differsOnlyBySpecialCharacters", () => {
+  it("accepts accents, ß/ss and ¿ ¡", () => {
+    expect(differsOnlyBySpecialCharacters("ANO", "AÑO", "es-ES")).toBe(true);
+    expect(differsOnlyBySpecialCharacters("TU", "TÚ", "es-ES")).toBe(true);
+    expect(differsOnlyBySpecialCharacters("FUR", "FÜR", "de-DE")).toBe(true);
+    expect(differsOnlyBySpecialCharacters("strasse", "straße", "de-DE")).toBe(true);
+    expect(differsOnlyBySpecialCharacters("QUE PASA?", "¿QUE PASA?", "es-ES")).toBe(true);
+  });
+
+  it("rejects other changes and no change", () => {
+    expect(differsOnlyBySpecialCharacters("WOG", "WOGEN", "de-DE")).toBe(false);
+    expect(differsOnlyBySpecialCharacters("FREIND", "FRIEND", "en-US")).toBe(false);
+    expect(differsOnlyBySpecialCharacters("AÑO", "año", "es-ES")).toBe(false);
   });
 });

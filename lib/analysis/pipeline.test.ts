@@ -281,6 +281,59 @@ describe("fr-FR ALL CAPS missing accent rule", () => {
   });
 });
 
+describe("spelling errors LanguageTool accepted (Claude only)", () => {
+  const wog = () =>
+    analysis("de-DE", ["KLAR HABE ICH ZUGENOMMEN ICH WOG MAL 3500 GRAMM"], [
+      { original: "WOG", type: "spelling", severity: "error", suggestions: [{ text: "WOGEN", note_vi: null }] },
+    ]);
+
+  it("ICH WOG MAL: at most Nghi ngờ, and the doubtful fix is not applied", () => {
+    const result = run(wog());
+    expect(result.issues[0].severity).toBe("warning");
+    expect(result.status).toBe("warning");
+    expect(result.issues[0].ltAccepted).toBe(true);
+    expect(result.blocks[0].correctedText).toBe("KLAR HABE ICH ZUGENOMMEN ICH WOG MAL 3500 GRAMM");
+  });
+
+  it("FELIZ ANO NUEVO stays Lỗi: the fix only adds Ñ", () => {
+    const result = run(
+      analysis("es-ES", ["FELIZ ANO NUEVO"], [{ original: "ANO", type: "spelling", severity: "error", suggestions: [{ text: "AÑO", note_vi: null }] }]),
+    );
+    expect(result.issues[0].severity).toBe("error");
+    expect(result.status).toBe("error");
+  });
+
+  it("TU → TÚ (accent only) stays Lỗi", () => {
+    const result = run(analysis("es-ES", ["TU ERES MI VIDA"], [{ original: "TU", type: "spelling", suggestions: [{ text: "TÚ", note_vi: null }] }]));
+    expect(result.status).toBe("error");
+  });
+
+  it("MEINE HUND stays Lỗi: grammar is not affected", () => {
+    const result = run(
+      analysis("de-DE", ["ICH LIEBE MEINE HUND"], [{ original: "MEINE HUND", type: "grammar", suggestions: [{ text: "MEINEN HUND", note_vi: null }] }]),
+    );
+    expect(result.issues[0].severity).toBe("error");
+    expect(result.status).toBe("error");
+  });
+
+  it("stays Lỗi when LanguageTool also flags the word", () => {
+    const result = run(
+      analysis("en-US", ["BEST FREIND EVER"], [{ original: "FREIND", type: "spelling", suggestions: [{ text: "FRIEND", note_vi: null }] }]),
+      [lt(0, 5, 11, "misspelling", ["FRIEND"])],
+    );
+    expect(result.status).toBe("error");
+  });
+
+  it("does not apply when LanguageTool did not check the block (offline, or block language unknown)", () => {
+    const offline = analyzeTexts({ claude: wog(), ltMatches: [], ltStatus: "offline" }, noDictionary).result;
+    expect(offline.status).toBe("error");
+
+    const unknownBlock = wog();
+    unknownBlock.blocks[0] = { ...unknownBlock.blocks[0], language: "unknown" };
+    expect(run(unknownBlock).status).toBe("error");
+  });
+});
+
 describe("computeStatus", () => {
   const issue = (severity: Issue["severity"], sources: Issue["sources"], extra: Partial<Issue> = {}) => ({
     severity,

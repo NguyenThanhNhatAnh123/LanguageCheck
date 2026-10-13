@@ -3,7 +3,7 @@ import type { DictionaryMatcher } from "@/lib/dictionary/matcher";
 import { splitWords } from "@/lib/dictionary/split-words";
 import { isLanguage, type Language } from "@/lib/languages";
 import { applyLtLanguageRules, ltLabelVi } from "./languagetool-rules";
-import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, isAllCaps, isMissingEnye, isUmlautSpelledOut } from "./text-case";
+import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, differsOnlyBySpecialCharacters, isAllCaps, isMissingEnye, isUmlautSpelledOut } from "./text-case";
 import type {
   AnalysisInput,
   AnalysisResult,
@@ -269,6 +269,22 @@ function isGermanSpelledOutUmlaut(issue: DraftIssue, language: Language | undefi
   return ltOnlySpelling && /ae|oe|ue/i.test(issue.original);
 }
 
+/**
+ * A spelling error only Claude reports, on a word LanguageTool checked and accepted, is at
+ * most a warning. LanguageTool's dictionary is reliable for spelling, while Claude sometimes
+ * flags a correct but uncommon form (ICH WOG MAL: "wog" is the past tense of "wiegen").
+ * "Checked" means LanguageTool ran (online) on this block's own language; "accepted" means it
+ * has no match there (a Claude-only issue after merging). Not applied when a suggestion only
+ * adds accents or special characters (ANO → AÑO, TU → TÚ): LanguageTool accepts ANO because
+ * it is a real word, and the language rules decide those. Grammar issues are not affected.
+ */
+function applyLtAcceptedSpellingRule(issue: DraftIssue, language: Language | undefined, ltChecked: boolean): DraftIssue {
+  if (!ltChecked || issue.type !== "spelling") return issue;
+  if (issue.sources.length !== 1 || issue.sources[0] !== "claude") return issue;
+  if (issue.suggestions.some((s) => differsOnlyBySpecialCharacters(issue.original, s.text, language))) return issue;
+  return { ...issue, severity: minSeverity(issue.severity, "warning"), ltAccepted: true };
+}
+
 /** CLAUDE.md "Cách tính status". info issues never count. */
 export function computeStatus(hasText: boolean, issues: readonly Pick<Issue, "severity" | "sources" | "intentionalPossible" | "type">[]): AnalysisStatus {
   if (!hasText) return "no_text";
@@ -285,13 +301,14 @@ export function computeStatus(hasText: boolean, issues: readonly Pick<Issue, "se
   return isWarning ? "warning" : "ok";
 }
 
-/** Applies the first suggestion of every located, non-intentional error/warning. */
+/** Applies the first suggestion of every located, non-intentional error/warning (except ltAccepted ones). */
 export function correctedText(blockText: string, issues: readonly Issue[]): string {
   const edits = issues
     .filter(
       (issue) =>
         (issue.severity === "error" || issue.severity === "warning") &&
         !issue.intentionalPossible &&
+        !issue.ltAccepted &&
         issue.start !== null &&
         issue.end !== null &&
         issue.suggestions.length > 0,
@@ -338,7 +355,10 @@ export function analyzeTexts(input: AnalysisInput, dictionary: DictionaryMatcher
       const suggestions = processSuggestions(trimmed, issue.original, block.text, language);
       const processed = { ...issue, suggestions };
       if (isGermanSpelledOutUmlaut(processed, language)) return null;
-      return applySpanishEnyeRule(applyFrenchCapsAccentRule(processed, language), language);
+      // LanguageTool only checks blocks whose own language is known (groupBlocksByLanguage).
+      const ltChecked = input.ltStatus === "online" && isLanguage(block.language);
+      const checked = applyLtAcceptedSpellingRule(processed, language, ltChecked);
+      return applySpanishEnyeRule(applyFrenchCapsAccentRule(checked, language), language);
     })
     .filter((issue): issue is DraftIssue => issue !== null)
     .sort((a, b) => a.blockIndex - b.blockIndex || (a.start ?? Infinity) - (b.start ?? Infinity))
@@ -384,6 +404,7 @@ function toIssue(draft: DraftIssue, index: number): Issue {
     ltLabelVi: draft.ltLabelVi,
     ltMessages: draft.ltMessages,
     suggestions: draft.suggestions,
+    ...(draft.ltAccepted ? { ltAccepted: true } : {}),
   };
 }
 

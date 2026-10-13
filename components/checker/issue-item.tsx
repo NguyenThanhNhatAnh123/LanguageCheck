@@ -87,6 +87,7 @@ export function IssueItem({ issue, language }: { issue: Issue; language: Languag
         <SeverityBadge severity={issue.severity} />
         <span>Nguồn: {sourceLabel(issue.sources)}</span>
         {issue.intentionalPossible && <span>· Có thể cố ý</span>}
+        {issue.ltAccepted && <span>· LanguageTool coi là đúng, chưa áp vào chữ sửa</span>}
         {issue.start === null && <span>· Không định vị được trong chữ</span>}
         {language && choice && (
           <span className="ml-auto">

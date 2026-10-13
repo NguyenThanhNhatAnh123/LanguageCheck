@@ -56,6 +56,11 @@ export interface Issue {
   /** LanguageTool's own messages, shown as-is (never translated). */
   ltMessages: string[];
   suggestions: Suggestion[];
+  /**
+   * Claude-only spelling error on a word LanguageTool checked and accepted: capped at
+   * warning, and its fix is not applied to "Chữ sau khi sửa" (the word is probably right).
+   */
+  ltAccepted?: boolean;
 }
 
 export interface ResultBlock {

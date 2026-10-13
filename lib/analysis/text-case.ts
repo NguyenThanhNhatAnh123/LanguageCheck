@@ -94,3 +94,13 @@ export function isMissingEnye(original: string, candidate: string, locale?: stri
   if (!/[ñÑ]/.test(nfc) || /[ñÑ]/.test(original.normalize("NFC"))) return false;
   return nfc.replace(/ñ/g, "n").replace(/Ñ/g, "N").toLocaleLowerCase(locale) === original.normalize("NFC").toLocaleLowerCase(locale);
 }
+
+/**
+ * True when `candidate` differs from `original` only by accents or special characters:
+ * diacritics (ANO/AÑO, TU/TÚ, FUR/FÜR), ß for ss, or an added ¿ ¡. Case is ignored.
+ */
+export function differsOnlyBySpecialCharacters(original: string, candidate: string, locale?: string): boolean {
+  const base = (text: string) =>
+    stripAccents(text).replace(/ß/g, "ss").replace(/ẞ/g, "SS").replace(/[¿¡]/g, "").toLocaleLowerCase(locale);
+  return base(original) === base(candidate) && original.toLocaleLowerCase(locale) !== candidate.toLocaleLowerCase(locale);
+}
