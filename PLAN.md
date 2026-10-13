@@ -446,6 +446,22 @@ Làm Giai đoạn 5:
 - **Đề xuất, chờ duyệt:**
   - **(h)** Nhấn mạnh trong prompt: từ lóng, từ tục, dạng nhấn mạnh/thu nhỏ (`-AZO`, `-ÓN`, `-ITO`), từ ghép (`ANTI-`…), thương hiệu, tên riêng mà từ điển có thể không có → luôn ghi `info` + `intentional_possible`, để báo động của LanguageTool được coi là báo nhầm. Ví dụ trong prompt khác với từ trong bộ test.
   - Song song là quy trình từ điển của team: gặp lần đầu thì thêm từ (`CULAZO`, `ANTIGILIPOLLAS`), từ đó không bị báo nữa.
+
+**Đã áp (h) (`ed8c7c7`), chạy lại 2026-10-13:**
+
+| Bộ | de-DE | fr-FR | es-ES | Tiếng Anh | s/ảnh | Kết luận |
+|---|---|---|---|---|---|---|
+| Tổng hợp (29) | ĐẠT | ĐẠT | ĐẠT | ĐẠT | 4,1 | **ĐẠT** |
+| Thật (21: 11 de, 2 fr, 8 es) | ĐẠT | ĐẠT | ĐẠT | — | 5,1 | **ĐẠT** (tạm thời: đáp án `claude-draft`) |
+
+- **Bộ thật:**
+  - 0/19 ảnh đúng bị báo; bắt 2/2 lỗi thật ở Lỗi; "Chữ sau khi sửa" đúng 21/21.
+  - Claude giờ ghi Ghi chú "cố ý" cho từ lóng/tục (`CULAZO`, `ANTIGILIPOLLAS`, `GILIPOLLAS`, `ME LA SUDA`, `MIERDA`, `MAJA`…). Báo động của LanguageTool trên `CULAZO`, `ANTIGILIPOLLAS` được gộp thành Ghi chú.
+- **Bộ tổng hợp:** chỉ `de-haida-stolz.png` ở Nghi ngờ (tên riêng, đúng spec).
+- Token ra mỗi ảnh ở bộ thật tăng nhẹ (khoảng 440 → 500) vì có thêm Ghi chú.
+- **Còn thiếu trước khi mở cổng Giai đoạn 6:**
+  - Thay đáp án `claude-draft` bằng chữ gốc từ file thiết kế.
+  - Thêm mockup thật có lỗi: bộ thật mới có 2 lỗi (1 de, 1 fr), chưa có lỗi es nào.
 - **Còn thiếu trước khi mở cổng Giai đoạn 6:**
   - ~~Mockup thật tiếng Tây Ban Nha (chưa có)~~: đã có 8 ảnh, đều không lỗi.
   - Thêm mockup thật có lỗi (mới có 2).
