@@ -416,8 +416,25 @@ Làm Giai đoạn 5:
   - Bộ thật: `ÉPUISER` (cả 2 nguồn) và `KAFFEE MACHEN` (chỉ Claude) đều ở Lỗi, phương án được áp.
   - "Chữ sau khi sửa" đúng 13/13 và 28/28.
 - LanguageTool cùng báo 11 issue ở bộ tổng hợp; LanguageTool chạy ở mọi ảnh có chữ.
+- **Thêm 8 mockup ảnh chụp tiếng Tây Ban Nha** (`2 (2).jpg` … `9 (2).jpg`, đáp án `claude-draft`; theo Claude Code đọc thì cả 8 đều đúng, văn nói/tục có chủ đích). Chạy bộ thật 21 ảnh, 2026-10-13:
+
+| Bộ | de-DE (11) | fr-FR (2) | es-ES (8) | s/ảnh | Kết luận |
+|---|---|---|---|---|---|
+| Thật (21) | ĐẠT | ĐẠT | TRƯỢT | 5,3 | TRƯỢT (tạm thời: đáp án `claude-draft`) |
+
+  - es-ES, 6/8 ảnh Không lỗi, gồm bẫy `Y LUEGO YA SI ESO`: `SI` không dấu là đúng và không bị báo.
+  - **`2 (2).jpg`, `3 (2).jpg` (cùng thiết kế `CULAZO`): ảnh đúng ở Nghi ngờ** (2/2, vừa đúng giới hạn).
+    - Chỉ LanguageTool báo `CULAZO` sai chính tả (từ lóng, không có trong từ điển LanguageTool), gợi ý `CALAZO`. Claude không báo.
+    - Theo spec, phương án của issue `warning` được áp, nên **"Chữ sau khi sửa" thành `CALAZO`**: chữ hỏng, trượt tiêu chí 3.
+  - **`5 (2).jpg`: Claude chép thiếu dấu hai chấm** trong `AVISO:` (dấu cách điệu, lẫn vào các vạch trang trí), nên "Chữ sau khi sửa" khác đáp án ở dấu đó. Đây là lỗi đọc chữ, không phải lỗi sửa.
+  - Quét mọi log eval: issue **chỉ LanguageTool báo** xuất hiện 4 lần, **đều là báo nhầm** (`CULAZO` ×2, 2 lần "thiếu dấu phẩy" trước khi sửa bộ lọc). LanguageTool chưa bắt được lỗi thật nào mà Claude bỏ sót.
+- **Đề xuất, chờ duyệt:**
+  - **(g)** Lỗi chính tả **chỉ LanguageTool báo**, trên block Claude đã đọc mà không báo gì: vẫn ở Nghi ngờ để người xem, nhưng **không áp phương án vào "Chữ sau khi sửa"**. Thẻ ghi "Chỉ LanguageTool báo, chưa áp vào chữ sửa". Đối xứng với quy tắc LanguageTool chấp nhận. Từ lóng như `CULAZO` thì thêm vào từ điển một lần là hết báo.
+  - Về `AVISO:`, chọn một trong hai:
+    - Giữ tiêu chí 3 chặt (thiếu dấu khi đọc chữ cũng tính trượt).
+    - Tiêu chí 3 chỉ xét chữ và số, bỏ qua khác biệt dấu câu mà tool không sửa.
 - **Còn thiếu trước khi mở cổng Giai đoạn 6:**
-  - Mockup thật tiếng Tây Ban Nha (chưa có).
+  - ~~Mockup thật tiếng Tây Ban Nha (chưa có)~~: đã có 8 ảnh, đều không lỗi.
   - Thêm mockup thật có lỗi (mới có 2).
   - Thay đáp án `claude-draft` bằng chữ gốc từ file thiết kế.
 
