@@ -12,6 +12,8 @@ export interface EvalCase {
   status: AnalysisStatus | null;
   /** All blocks' "Chữ sau khi sửa", joined. null when the analysis failed. */
   correctedText: string | null;
+  /** Language of the design, from expected.csv's optional "language" column. */
+  language: string | null;
 }
 
 export interface Rate {
@@ -74,6 +76,27 @@ export function summarize(cases: readonly EvalCase[]): EvalSummary {
       withText.length,
     ),
   };
+}
+
+/** Languages first in this order (the tool's main ones first), then any others, then unknown. */
+const LANGUAGE_ORDER = ["de-DE", "fr-FR", "es-ES", "en-US"];
+export const UNKNOWN_LANGUAGE = "(không ghi)";
+
+/** summarize() per language, for the per-language report. */
+export function summarizeByLanguage(cases: readonly EvalCase[]): Array<{ language: string; summary: EvalSummary }> {
+  const groups = new Map<string, EvalCase[]>();
+  for (const c of cases) {
+    const key = c.language ?? UNKNOWN_LANGUAGE;
+    groups.set(key, [...(groups.get(key) ?? []), c]);
+  }
+  const rank = (language: string) => {
+    const index = LANGUAGE_ORDER.indexOf(language);
+    if (index !== -1) return index;
+    return language === UNKNOWN_LANGUAGE ? LANGUAGE_ORDER.length + 1 : LANGUAGE_ORDER.length;
+  };
+  return [...groups.entries()]
+    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+    .map(([language, group]) => ({ language, summary: summarize(group) }));
 }
 
 export function formatRate(value: Rate): string {

@@ -13,7 +13,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "hash-password": "tsx scripts/hash-password.ts",
     "eval": "tsx scripts/eval.ts",
-    "db:backup": "tsx scripts/backup-db.ts"
+    "db:backup": "tsx scripts/backup-db.ts",
+    "test-images": "tsx scripts/generate-test-mockups.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.133.0",

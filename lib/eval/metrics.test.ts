@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRate, normalizeText, parseExpectedError, summarize, type EvalCase } from "./metrics";
+import { formatRate, normalizeText, parseExpectedError, summarize, summarizeByLanguage, type EvalCase } from "./metrics";
 
 const c = (expectedError: boolean, status: EvalCase["status"], extra: Partial<EvalCase> = {}): EvalCase => ({
   file: "x.png",
@@ -7,6 +7,7 @@ const c = (expectedError: boolean, status: EvalCase["status"], extra: Partial<Ev
   expectedText: null,
   status,
   correctedText: status === null ? null : "",
+  language: null,
   ...extra,
 });
 
@@ -59,5 +60,21 @@ describe("formatting", () => {
 
   it("normalizes text", () => {
     expect(normalizeText("  Hello\n  World ")).toBe("hello world");
+  });
+});
+
+describe("summarizeByLanguage", () => {
+  it("groups by language, main languages first, unknown last", () => {
+    const groups = summarizeByLanguage([
+      c(true, "error", { language: "en-US" }),
+      c(false, "ok"),
+      c(true, "ok", { language: "es-ES" }),
+      c(true, "error", { language: "de-DE" }),
+      c(false, "warning", { language: "de-DE" }),
+    ]);
+    expect(groups.map((g) => g.language)).toEqual(["de-DE", "es-ES", "en-US", "(không ghi)"]);
+    expect(groups[0].summary.detection).toEqual({ hits: 1, total: 1, rate: 1 });
+    expect(groups[0].summary.falseAlarm).toEqual({ hits: 1, total: 1, rate: 1 });
+    expect(groups[1].summary.detection).toEqual({ hits: 0, total: 1, rate: 0 });
   });
 });

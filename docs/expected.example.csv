@@ -1,8 +1,8 @@
-file,expected_text,has_error
+file,expected_text,has_error,language
 your-the-best-dad.jpg,"YOU'RE THE BEST
-DAD EVER",yes
-nur-fur-dich.png,NUR FÜR DICH,yes
+DAD EVER",yes,en-US
+nur-fur-dich.png,NUR FÜR DICH,yes,de-DE
 gonna-rock.jpg,"WE'RE GONNA
-ROCK TONIGHT",no
-vive-l-ete.png,VIVE L'ETE,no
-plain-tshirt-no-text.jpg,,no
+ROCK TONIGHT",no,en-US
+vive-l-ete.png,VIVE L'ETE,no,fr-FR
+plain-tshirt-no-text.jpg,,no,
