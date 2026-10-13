@@ -2,7 +2,7 @@ import type { ClaudeBlock, Severity } from "@/lib/claude/schema";
 import { toWordKey } from "@/lib/dictionary/word-key";
 import type { Language } from "@/lib/languages";
 import { LANGUAGES } from "@/lib/languages";
-import { differsOnlyByAccents, isAllCaps, stripAccents } from "./text-case";
+import { differsOnlyByAccents, isAllCaps, isMissingEnye, isUmlautSpelledOut, stripAccents } from "./text-case";
 import type { LtBlockMatch } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -117,6 +117,11 @@ export function applyLtLanguageRules(match: LtBlockMatch, block: ClaudeBlock, la
 
   switch (language) {
     case "de-DE":
+      // AE/OE/UE for Ä/Ö/Ü is a valid spelling (FUER, MUETTER), in any case. Only a missing
+      // umlaut (FUR) is an error.
+      if (match.replacements.some((replacement) => isUmlautSpelledOut(original, replacement, language))) {
+        return { action: "drop" };
+      }
       if (isAllCaps(block.text, language)) {
         // ALL CAPS: noun-capitalization rules do not apply, and SS for ß is valid. Drop any
         // match that only asks for a different case or ß (same word_key as the original).
@@ -139,6 +144,11 @@ export function applyLtLanguageRules(match: LtBlockMatch, block: ClaudeBlock, la
       // Missing ¿ ¡ → warning.
       if (match.replacements.some((replacement) => /[¿¡]/.test(replacement) && !/[¿¡]/.test(original))) {
         return { action: "keep", severity: "warning" };
+      }
+      // Missing Ñ (ANO → AÑO) → error. LanguageTool rarely flags ANO itself (a real word);
+      // this covers the words it does flag, Claude catches the rest from context.
+      if (match.replacements.some((replacement) => isMissingEnye(original, replacement, language))) {
+        return { action: "keep", severity: "error" };
       }
       // Missing accent that changes the meaning → error.
       const base = stripAccents(original).toLocaleLowerCase(language);

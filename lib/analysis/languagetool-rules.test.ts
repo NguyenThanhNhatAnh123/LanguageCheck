@@ -108,6 +108,12 @@ describe("applyLtLanguageRules", () => {
     expect(applyLtLanguageRules(match(4, 7, { replacements: ["FU", "VfR"] }), b, "de-DE")).toEqual({ action: "keep", severity: "error" });
   });
 
+  it("de-DE: AE/OE/UE for Ä/Ö/Ü is valid, in caps and lowercase", () => {
+    expect(applyLtLanguageRules(match(0, 4, { replacements: ["FÜR", "FEUER"] }), block(0, "FUER IMMER", "de-DE"), "de-DE")).toEqual({ action: "drop" });
+    expect(applyLtLanguageRules(match(10, 17, { replacements: ["MÜTTER"] }), block(0, "DIE BESTE MUETTER", "de-DE"), "de-DE")).toEqual({ action: "drop" });
+    expect(applyLtLanguageRules(match(4, 10, { replacements: ["schön"] }), block(0, "ein schoen Tag", "de-DE"), "de-DE")).toEqual({ action: "drop" });
+  });
+
   it("de-DE mixed case: casing matches are kept", () => {
     const b = block(0, "ich liebe dich", "de-DE");
     expect(applyLtLanguageRules(match(0, 3, { categoryId: "CASING", issueType: "typographical", replacements: ["Ich"] }), b, "de-DE")).toEqual({ action: "keep", severity: "info" });
@@ -126,6 +132,11 @@ describe("applyLtLanguageRules", () => {
   it("es-ES: a meaning-changing missing accent is an error", () => {
     const b = block(0, "TU ERES MI VIDA", "es-ES");
     expect(applyLtLanguageRules(match(0, 2, { issueType: "uncategorized", replacements: ["TÚ"] }), b, "es-ES")).toEqual({ action: "keep", severity: "error" });
+  });
+
+  it("es-ES: a missing Ñ is an error whatever LanguageTool calls it", () => {
+    const b = block(0, "FELIZ CUMPLEANOS", "es-ES");
+    expect(applyLtLanguageRules(match(6, 16, { issueType: "uncategorized", replacements: ["CUMPLEAÑOS"] }), b, "es-ES")).toEqual({ action: "keep", severity: "error" });
   });
 
   it("drops matches on Claude's [?] placeholder", () => {

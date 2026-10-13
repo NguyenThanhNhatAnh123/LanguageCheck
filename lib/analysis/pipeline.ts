@@ -3,7 +3,7 @@ import type { DictionaryMatcher } from "@/lib/dictionary/matcher";
 import { splitWords } from "@/lib/dictionary/split-words";
 import { isLanguage, type Language } from "@/lib/languages";
 import { applyLtLanguageRules, ltLabelVi } from "./languagetool-rules";
-import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, isAllCaps } from "./text-case";
+import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, isAllCaps, isMissingEnye, isUmlautSpelledOut } from "./text-case";
 import type {
   AnalysisInput,
   AnalysisResult,
@@ -212,6 +212,24 @@ function applyFrenchCapsAccentRule(issue: DraftIssue, language: Language | undef
   return accentOnly ? { ...issue, severity: "info" } : issue;
 }
 
+/**
+ * es-ES: a missing Ñ (ANO → AÑO) is always an error and never intentional, whichever source
+ * reported it and whatever severity Claude gave.
+ */
+function applySpanishEnyeRule(issue: DraftIssue, language: Language | undefined): DraftIssue {
+  if (language !== "es-ES") return issue;
+  const missingEnye = issue.suggestions.some((s) => isMissingEnye(issue.original, s.text, language));
+  return missingEnye ? { ...issue, severity: "error", intentionalPossible: false } : issue;
+}
+
+/**
+ * de-DE: AE/OE/UE for Ä/Ö/Ü (FUER, MUETTER) is a valid spelling, so an issue that only asks
+ * for the umlaut is dropped, from either source. A missing umlaut (FUR) is not affected.
+ */
+function isGermanSpelledOutUmlaut(issue: DraftIssue, language: Language | undefined): boolean {
+  return language === "de-DE" && issue.suggestions.some((s) => isUmlautSpelledOut(issue.original, s.text, language));
+}
+
 /** CLAUDE.md "Cách tính status". info issues never count. */
 export function computeStatus(hasText: boolean, issues: readonly Pick<Issue, "severity" | "sources" | "intentionalPossible" | "type">[]): AnalysisStatus {
   if (!hasText) return "no_text";
@@ -274,8 +292,11 @@ export function analyzeTexts(input: AnalysisInput, dictionary: DictionaryMatcher
       const block = analysis.blocks[issue.blockIndex];
       const language = blockLanguage(block, analysis);
       const suggestions = processSuggestions(issue.suggestions, issue.original, block.text, language);
-      return applyFrenchCapsAccentRule({ ...issue, suggestions }, language);
+      const processed = { ...issue, suggestions };
+      if (isGermanSpelledOutUmlaut(processed, language)) return null;
+      return applySpanishEnyeRule(applyFrenchCapsAccentRule(processed, language), language);
     })
+    .filter((issue): issue is DraftIssue => issue !== null)
     .sort((a, b) => a.blockIndex - b.blockIndex || (a.start ?? Infinity) - (b.start ?? Infinity))
     .map(toIssue);
 

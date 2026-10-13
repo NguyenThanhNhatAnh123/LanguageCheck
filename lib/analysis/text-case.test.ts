@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, isAllCaps } from "./text-case";
+import { applyCaseStyle, caseStyleOf, differsOnlyByAccents, isAllCaps, isMissingEnye, isUmlautSpelledOut } from "./text-case";
 
 describe("caseStyleOf", () => {
   it("detects upper, capitalized and lower originals", () => {
@@ -62,5 +62,36 @@ describe("differsOnlyByAccents", () => {
   it("is false for different letters or identical strings", () => {
     expect(differsOnlyByAccents("ETE", "ETC")).toBe(false);
     expect(differsOnlyByAccents("ETE", "ete")).toBe(false);
+  });
+});
+
+describe("isUmlautSpelledOut", () => {
+  it("accepts AE/OE/UE written for Ä/Ö/Ü", () => {
+    expect(isUmlautSpelledOut("FUER", "FÜR", "de-DE")).toBe(true);
+    expect(isUmlautSpelledOut("MUETTER", "MÜTTER", "de-DE")).toBe(true);
+    expect(isUmlautSpelledOut("schoen", "schön", "de-DE")).toBe(true);
+    expect(isUmlautSpelledOut("Kaese", "Käse", "de-DE")).toBe(true);
+  });
+
+  it("rejects a plain missing umlaut or any other change", () => {
+    expect(isUmlautSpelledOut("FUR", "FÜR", "de-DE")).toBe(false);
+    expect(isUmlautSpelledOut("FUER", "FUER", "de-DE")).toBe(false);
+    expect(isUmlautSpelledOut("FUER", "FÜRS", "de-DE")).toBe(false);
+    expect(isUmlautSpelledOut("STRASSE", "STRAẞE", "de-DE")).toBe(false);
+  });
+});
+
+describe("isMissingEnye", () => {
+  it("detects an n that should be ñ", () => {
+    expect(isMissingEnye("ANO", "AÑO", "es-ES")).toBe(true);
+    expect(isMissingEnye("CUMPLEANOS", "CUMPLEAÑOS", "es-ES")).toBe(true);
+    expect(isMissingEnye("nino", "niño", "es-ES")).toBe(true);
+  });
+
+  it("ignores other changes", () => {
+    expect(isMissingEnye("ANO", "ANOS", "es-ES")).toBe(false);
+    expect(isMissingEnye("AÑO", "AÑO", "es-ES")).toBe(false);
+    expect(isMissingEnye("TU", "TÚ", "es-ES")).toBe(false);
+    expect(isMissingEnye("ANO", "AÑOS", "es-ES")).toBe(false);
   });
 });

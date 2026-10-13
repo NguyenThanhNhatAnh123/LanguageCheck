@@ -70,3 +70,27 @@ export function differsOnlyByAccents(original: string, candidate: string, locale
   const base = (text: string) => stripAccents(text).toLocaleLowerCase(locale);
   return base(original) === base(candidate) && original.toLocaleLowerCase(locale) !== candidate.toLocaleLowerCase(locale);
 }
+
+const UMLAUT_SPELLING: Record<string, string> = { ä: "ae", ö: "oe", ü: "ue", Ä: "AE", Ö: "OE", Ü: "UE" };
+
+/**
+ * de-DE: true when `original` writes AE/OE/UE where `candidate` has Ä/Ö/Ü, which is a valid
+ * German spelling (FUER for FÜR, MUETTER for MÜTTER). "FUR" vs "FÜR" → false: there the
+ * umlaut is simply missing.
+ */
+export function isUmlautSpelledOut(original: string, candidate: string, locale?: string): boolean {
+  const nfc = candidate.normalize("NFC");
+  if (!/[äöüÄÖÜ]/.test(nfc)) return false;
+  const spelledOut = nfc.replace(/[äöüÄÖÜ]/g, (letter) => UMLAUT_SPELLING[letter]);
+  return spelledOut.toLocaleLowerCase(locale) === original.normalize("NFC").toLocaleLowerCase(locale);
+}
+
+/**
+ * es-ES: true when `candidate` only adds a tilde to n (ANO vs AÑO, CUMPLEANOS vs CUMPLEAÑOS).
+ * A missing Ñ is always an error: ANO is a real (and very different) word.
+ */
+export function isMissingEnye(original: string, candidate: string, locale?: string): boolean {
+  const nfc = candidate.normalize("NFC");
+  if (!/[ñÑ]/.test(nfc) || /[ñÑ]/.test(original.normalize("NFC"))) return false;
+  return nfc.replace(/ñ/g, "n").replace(/Ñ/g, "N").toLocaleLowerCase(locale) === original.normalize("NFC").toLocaleLowerCase(locale);
+}

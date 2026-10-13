@@ -242,6 +242,27 @@ describe("fr-FR ALL CAPS missing accent rule", () => {
     expect(result.issues[0].severity).toBe("error");
     expect(result.status).toBe("error");
   });
+
+  it("FUER (de-DE) is a valid spelling: dropped from both sources", () => {
+    const result = run(
+      analysis("de-DE", ["FUER IMMER"], [{ original: "FUER", type: "spelling", severity: "warning", suggestions: [{ text: "FÜR", note_vi: null }] }]),
+      [lt(0, 0, 4, "misspelling", ["FÜR", "FEUER"])],
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.status).toBe("ok");
+    expect(result.blocks[0].correctedText).toBe("FUER IMMER");
+  });
+
+  it("FELIZ ANO NUEVO (es-ES): Claude's missing Ñ is an error even if marked warning/intentional", () => {
+    const result = run(
+      analysis("es-ES", ["FELIZ ANO NUEVO"], [
+        { original: "ANO", type: "accent", severity: "warning", intentional_possible: true, suggestions: [{ text: "AÑO", note_vi: null }] },
+      ]),
+    );
+    expect(result.issues[0]).toMatchObject({ severity: "error", intentionalPossible: false });
+    expect(result.status).toBe("error");
+    expect(result.blocks[0].correctedText).toBe("FELIZ AÑO NUEVO");
+  });
 });
 
 describe("computeStatus", () => {
