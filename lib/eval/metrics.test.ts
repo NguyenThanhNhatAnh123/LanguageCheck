@@ -61,6 +61,8 @@ describe("formatting", () => {
   it("normalizes text", () => {
     expect(normalizeText("  Hello\n  World ")).toBe("hello world");
     expect(normalizeText("J’AI JUSTE RAISON")).toBe(normalizeText("J'AI JUSTE RAISON"));
+    expect(normalizeText("“ME LA SUDA”")).toBe(normalizeText('"ME LA SUDA"'));
+    expect(normalizeText("YO QUÉ SÉ…")).toBe(normalizeText("YO QUÉ SÉ..."));
   });
 });
 

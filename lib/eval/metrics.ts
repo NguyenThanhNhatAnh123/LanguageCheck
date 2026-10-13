@@ -45,9 +45,19 @@ function rate(hits: number, total: number): Rate {
   return { hits, total, rate: total === 0 ? null : hits / total };
 }
 
-/** For comparing "Chữ sau khi sửa" with the answer: case, spacing and apostrophe style ignored (J’AI = J'AI). */
+/**
+ * For comparing "Chữ sau khi sửa" with the answer: case, spacing and typographic variants
+ * ignored (J’AI = J'AI, “ME LA SUDA” = "ME LA SUDA", … = ...).
+ */
 export function normalizeText(text: string): string {
-  return text.normalize("NFC").replace(/[’‘ʼ]/g, "'").replace(/\s+/g, " ").trim().toLocaleLowerCase();
+  return text
+    .normalize("NFC")
+    .replace(/[’‘ʼ]/g, "'")
+    .replace(/[“”„]/g, '"')
+    .replace(/…/g, "...")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase();
 }
 
 const YES = new Set(["yes", "y", "1", "true", "x", "có", "co", "loi", "lỗi", "error"]);
