@@ -378,6 +378,28 @@ Làm Giai đoạn 5:
   - (d) Lỗi hợp giống/số/cách và chia động từ không bao giờ là cố ý: `error`, `intentional_possible = false`.
   - (e) Trong `normal_case`, chữ đầu dòng không viết hoa trừ khi là đầu câu mới.
 
+**Đã áp (d) và (e) (`d816447`), chạy lại 2026-10-13:**
+
+| Bộ | de-DE | fr-FR | es-ES | Tiếng Anh | s/ảnh | Kết luận |
+|---|---|---|---|---|---|---|
+| Tổng hợp (29) | ĐẠT | ĐẠT | ĐẠT | ĐẠT | 3,9 | **ĐẠT** |
+| Thật (13: 11 de, 2 fr) | ĐẠT | ĐẠT | — | — | 4,8 | **ĐẠT** (tạm thời: đáp án `claude-draft`) |
+
+- (d):
+  - `ÉPUISER` → `ÉPUISÉE` ở Lỗi, không còn "có thể cố ý", phương án được áp.
+  - `KAFFEE MACHEN` → `MACHT` ở Lỗi.
+  - "Chữ sau khi sửa" đúng 13/13 (bộ thật) và 28/28 (bộ tổng hợp).
+- (e): bản chữ thường giờ là `Ich bin ein\ngute Mensch`, LanguageTool bắt được `GUTE MENSCH`. Ở bộ tổng hợp, LanguageTool cùng báo 11 lỗi, còn 2 issue chỉ Claude báo.
+- **Ảnh đúng ở Nghi ngờ:**
+  - Bộ tổng hợp: `de-haida-stolz.png` (tên riêng, đúng spec).
+  - Bộ thật, tiếng Đức có **2, đúng bằng giới hạn**:
+    - `WOG`: lỗi không có cách sửa nên hạ xuống Nghi ngờ theo (c).
+    - `5.png` `ERWACHSEN VERHALTEN`: ca mới. Claude báo warning, không phương án, giải thích tự viết "Không có lỗi ở đây". Trước (d) ca này chỉ là Ghi chú.
+- **Kiểu báo nhầm lặp lại của Sonnet:** tạo issue cho chữ đúng, không kèm phương án sửa, giải thích tự nói là đúng (`WOG`, `WUSSTEST`, `ERWACHSEN`). Trong mọi log đến nay, không có lỗi thật nào thuộc dạng "chỉ Claude báo, không phương án, không đánh dấu cố ý".
+- **Đề xuất, chờ duyệt:**
+  - **(f)** Issue chỉ Claude báo, không có phương án, không đánh dấu "có thể cố ý", không phải `ocr_uncertain` → chỉ là Ghi chú (không tính vào status). Thay cho (c).
+  - Tên riêng như `HAIDA` (Claude đánh dấu "có thể cố ý") vẫn ở Nghi ngờ để nhắc thêm vào từ điển.
+
 **Đáp án bộ thật:** cả 8 dòng đang là `source = claude-draft` (Claude Code soạn từ việc đọc ảnh). Sẽ được thay bằng chữ gốc từ file thiết kế. Eval cảnh báo khi còn dòng `claude-draft`.
 
 ---
