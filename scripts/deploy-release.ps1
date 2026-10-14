@@ -57,8 +57,23 @@ try {
   Native { git archive --format=zip --output=$archive $Revision }
   Expand-Archive -LiteralPath $archive -DestinationPath $release
   Remove-Item -LiteralPath $archive
-  # Hard link shares the protected file and future password/session updates.
-  New-Item -ItemType HardLink -Path (Join-Path $release '.env.local') -Value $envPath | Out-Null
+  # A read-only source must not require hard-link/write-attribute permission.
+  # Copy into the private release, then restrict it to the service account/admins.
+  $releaseEnv = Join-Path $release '.env.local'
+  Copy-Item -LiteralPath $envPath -Destination $releaseEnv
+  $envAcl = New-Object Security.AccessControl.FileSecurity
+  $envAcl.SetAccessRuleProtection($true,$false)
+  $identity = [Security.Principal.WindowsIdentity]::GetCurrent().User
+  foreach ($entry in @(
+    @($identity.Value,'Read'),
+    @('S-1-5-32-544','FullControl'),
+    @('S-1-5-18','FullControl')
+  )) {
+    $sid = New-Object Security.Principal.SecurityIdentifier($entry[0])
+    $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid,$entry[1],'Allow')
+    $envAcl.AddAccessRule($rule)
+  }
+  Set-Acl -LiteralPath $releaseEnv -AclObject $envAcl
   New-Item -ItemType Junction -Path (Join-Path $release 'data') -Value (Join-Path $ServerRoot 'data') | Out-Null
   Set-Location -LiteralPath $release
   Native { npm.cmd ci --no-audit --no-fund }
@@ -82,7 +97,7 @@ try {
     ConvertTo-Json | Set-Content (Join-Path $setup 'current-release.json')
   Write-Host "DEPLOY SUCCESS: $Revision; local/public HTTP 200; LanguageTool online"
 } catch {
-  $failure = $_.Exception.Message
+  $failure = "$($_.Exception.Message) (line $($_.InvocationInfo.ScriptLineNumber))"
   if ($stopped) {
     try {
       Stop-Service -Name $ServiceName -ErrorAction SilentlyContinue

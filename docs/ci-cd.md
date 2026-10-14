@@ -14,10 +14,11 @@ GitHub Actions and the runner use outbound connections; no incoming port is adde
 
 `scripts/deploy-release.ps1` builds the exact verified commit in a new directory
 under `F:\LanguageCheck\.local-setup\releases`. The app keeps running during build.
-The release uses a hard link to the canonical `.env.local` and a junction to
-`data`, so secrets and live data stay on this server and password changes remain
-shared. Never replace the canonical env file with a different file: edit it in
-place, then restart `PodQA`.
+The release uses a protected copy of the canonical `.env.local` and a junction
+to `data`, so secrets and live data stay on this server. For configuration or
+password changes, update the canonical env file and run the workflow manually
+to deploy a fresh snapshot. An urgent change must also update the active release's
+env file (directory recorded in `current-release.json`) and restart `PodQA`.
 
 After build, deployment stops PodQA, backs up SQLite, migrates the database,
 switches the service directory, starts it, and checks local/public login plus
