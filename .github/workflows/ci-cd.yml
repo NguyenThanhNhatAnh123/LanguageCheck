@@ -14,6 +14,9 @@ jobs:
   ci:
     runs-on: windows-latest
     timeout-minutes: 20
+    concurrency:
+      group: podqa-ci-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -45,9 +48,16 @@ jobs:
         with:
           persist-credentials: false
       - name: Deploy verified revision
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy RemoteSigned -File "{0}"
         env:
           DEPLOY_REVISION: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; 'User-Agent' = 'LanguageCheck-deploy' }
+          $main = Invoke-RestMethod "https://api.github.com/repos/$env:GITHUB_REPOSITORY/commits/main" -Headers $headers -TimeoutSec 20
+          if ($main.sha -ne $env:DEPLOY_REVISION) {
+            Write-Host 'Skipping superseded revision; a newer main deployment will follow.'
+            exit 0
+          }
           & .\scripts\deploy-release.ps1 -SourceDir $env:GITHUB_WORKSPACE -Revision $env:DEPLOY_REVISION
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

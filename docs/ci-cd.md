@@ -30,7 +30,7 @@ Machine-local paths:
 - Deployment history: GitHub Actions; `.local-setup/current-release.json`
 - Database snapshots: `.local-setup/backups` (on the same drive; off-machine backups
   still need to be configured separately)
-- Service logs: `.local-setup/PodQA.log`, `.local-setup/LanguageTool.log`
+- Service logs: `.local-setup/logs/PodQA.log`, `.local-setup/LanguageTool.log`
 
 Keep `.local-setup`, `.env.local` and `data` intact. Do not commit them or uploaded
 mockups. Deployments do not run the paid Claude evaluation suite.
