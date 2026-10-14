@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $setup = Join-Path $ServerRoot '.local-setup'
 $nodeDir = Join-Path $setup 'runtime\node-v24.21.0-win-x64'
-$nssm = Join-Path $setup 'runtime\nssm-2.24\win64\nssm.exe'
+$serviceParameters = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName\Parameters"
 $env:PATH = "$nodeDir;$env:PATH"
 $env:NEXT_TELEMETRY_DISABLED = '1'
 $env:CLAUDE_MOCK = ''
@@ -40,8 +40,8 @@ try {
   Set-Location -LiteralPath $SourceDir
   $actual = (& git rev-parse HEAD).Trim()
   if ($LASTEXITCODE -ne 0 -or $actual -ne $Revision) { throw 'Checkout does not match verified revision' }
-  $previous = (& $nssm get $ServiceName AppDirectory).Trim()
-  if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $previous)) { throw 'Cannot read current service directory' }
+  $previous = (Get-ItemProperty -LiteralPath $serviceParameters -Name AppDirectory).AppDirectory
+  if (-not $previous -or -not (Test-Path -LiteralPath $previous)) { throw 'Cannot read current service directory' }
   $envPath = Join-Path $ServerRoot '.env.local'
   $config = @{}
   foreach ($line in Get-Content -LiteralPath $envPath) {
@@ -71,7 +71,7 @@ try {
   Native { npm.cmd run -s db:backup -- $backup }
   $backupReady = $true
   Native { npm.cmd run -s db:migrate }
-  Native { & $nssm set $ServiceName AppDirectory $release }
+  Set-ItemProperty -LiteralPath $serviceParameters -Name AppDirectory -Value $release
   $switched = $true
   Start-Service -Name $ServiceName
   WaitHealthy 'http://127.0.0.1:3000/login'
@@ -86,7 +86,7 @@ try {
   if ($stopped) {
     try {
       Stop-Service -Name $ServiceName -ErrorAction SilentlyContinue
-      if ($switched) { Native { & $nssm set $ServiceName AppDirectory $previous } }
+      if ($switched) { Set-ItemProperty -LiteralPath $serviceParameters -Name AppDirectory -Value $previous }
       if ($backupReady -and (Test-Path -LiteralPath $backup)) {
         # Fixed targets inside ServerRoot; the stopped app cannot write to SQLite.
         $db = Join-Path $ServerRoot 'data\app.db'
