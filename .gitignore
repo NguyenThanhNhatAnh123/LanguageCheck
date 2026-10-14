@@ -27,3 +27,6 @@ test-images/
 
 # UI screenshots for review (not committed)
 /screenshots/
+
+# Machine-local service runtimes and installation files
+/.local-setup/

@@ -1,0 +1,37 @@
+# CI/CD on the Windows production server
+
+Pushes to `main` run lint, type checking, unit tests and a production build on
+GitHub-hosted Windows. Only a successful `main` run may deploy through the
+`podqa-production` self-hosted runner. Pull requests never run on this server.
+Concurrent deployments are serialized; a running deployment is not cancelled.
+
+The production runner runs as a Windows service. It needs administrative service
+access, so repository write access and edits to `main`/workflows must be trusted.
+GitHub Actions and the runner use outbound connections; no incoming port is added.
+
+`scripts/deploy-release.ps1` builds the exact verified commit in a new directory
+under `F:\LanguageCheck\.local-setup\releases`. The app keeps running during build.
+The release uses a hard link to the canonical `.env.local` and a junction to
+`data`, so secrets and live data stay on this server and password changes remain
+shared. Never replace the canonical env file with a different file: edit it in
+place, then restart `PodQA`.
+
+After build, deployment stops PodQA, backs up SQLite, migrates the database,
+switches the service directory, starts it, and checks local/public login plus
+LanguageTool. A failed deployment after stopping restores the previous service
+directory and pre-migration database. Deployment has a short maintenance interval.
+
+Machine-local paths:
+
+- Runtime and runner: `.local-setup/runtime`, `.local-setup/runner`
+- Deployment history: GitHub Actions; `.local-setup/current-release.json`
+- Database snapshots: `.local-setup/backups` (on the same drive; off-machine backups
+  still need to be configured separately)
+- Service logs: `.local-setup/PodQA.log`, `.local-setup/LanguageTool.log`
+
+Keep `.local-setup`, `.env.local` and `data` intact. Do not commit them or uploaded
+mockups. Deployments do not run the paid Claude evaluation suite.
+
+The older `scripts/deploy.ps1` is for manual in-place deployments only; use the
+GitHub workflow for production releases. Changes in the root checkout are not
+live until committed, pushed, and successfully deployed.

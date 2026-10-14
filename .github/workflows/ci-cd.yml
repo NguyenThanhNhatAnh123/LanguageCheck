@@ -1,0 +1,53 @@
+name: CI and production deploy
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - run: npm.cmd install --global npm@11.19.0
+      - run: npm.cmd ci --no-audit --no-fund
+      - run: npm.cmd run lint
+      - run: npm.cmd run typecheck
+      - run: npm.cmd test
+      - run: npm.cmd run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+
+  deploy:
+    needs: ci
+    if: github.repository == 'NguyenThanhNhatAnh123/LanguageCheck' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: [self-hosted, Windows, X64, podqa-production]
+    environment: production
+    timeout-minutes: 25
+    concurrency:
+      group: podqa-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Deploy verified revision
+        shell: powershell
+        env:
+          DEPLOY_REVISION: ${{ github.sha }}
+        run: |
+          & .\scripts\deploy-release.ps1 -SourceDir $env:GITHUB_WORKSPACE -Revision $env:DEPLOY_REVISION
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
