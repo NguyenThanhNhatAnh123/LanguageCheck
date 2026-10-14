@@ -18,7 +18,7 @@ The release uses a protected copy of the canonical `.env.local` and a junction
 to `data`, so secrets and live data stay on this server. For configuration or
 password changes, update the canonical env file and run the workflow manually
 to deploy a fresh snapshot. An urgent change must also update the active release's
-env file (directory recorded in `current-release.json`) and restart `PodQA`.
+env file (directory recorded in `releases/current-release.json`) and restart `PodQA`.
 
 After build, deployment stops PodQA, backs up SQLite, migrates the database,
 switches the service directory, starts it, and checks local/public login plus
@@ -28,7 +28,7 @@ directory and pre-migration database. Deployment has a short maintenance interva
 Machine-local paths:
 
 - Runtime and runner: `.local-setup/runtime`, `.local-setup/runner`
-- Deployment history: GitHub Actions; `.local-setup/current-release.json`
+- Deployment history: GitHub Actions; `.local-setup/releases/current-release.json`
 - Database snapshots: `.local-setup/backups` (on the same drive; off-machine backups
   still need to be configured separately)
 - Service logs: `.local-setup/logs/PodQA.log`, `.local-setup/LanguageTool.log`

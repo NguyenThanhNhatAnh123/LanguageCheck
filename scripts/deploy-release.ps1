@@ -24,6 +24,19 @@ function Native([scriptblock]$Command) {
   & $Command
   if ($LASTEXITCODE -ne 0) { throw "Command failed (exit $LASTEXITCODE)" }
 }
+function SetServiceDirectory([string]$Directory) {
+  # The PowerShell registry provider asks for broader WriteKey permission.
+  # Open only the existing Parameters key with the granted SetValue right.
+  $path = "SYSTEM\CurrentControlSet\Services\$ServiceName\Parameters"
+  $key = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey(
+    $path,
+    [Microsoft.Win32.RegistryKeyPermissionCheck]::Default,
+    [Security.AccessControl.RegistryRights]::SetValue
+  )
+  if (-not $key) { throw 'Cannot open PodQA service parameters' }
+  try { $key.SetValue('AppDirectory',$Directory,[Microsoft.Win32.RegistryValueKind]::ExpandString) }
+  finally { $key.Dispose() }
+}
 function WaitHealthy([string]$Url) {
   for ($attempt=0; $attempt -lt 20; $attempt++) {
     try {
@@ -86,7 +99,7 @@ try {
   Native { npm.cmd run -s db:backup -- $backup }
   $backupReady = $true
   Native { npm.cmd run -s db:migrate }
-  Set-ItemProperty -LiteralPath $serviceParameters -Name AppDirectory -Value $release
+  SetServiceDirectory $release
   $switched = $true
   Start-Service -Name $ServiceName
   WaitHealthy 'http://127.0.0.1:3000/login'
@@ -94,14 +107,14 @@ try {
   $lt = Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:8081/v2/languages' -TimeoutSec 10
   if ($lt.StatusCode -ne 200) { throw 'LanguageTool is unavailable' }
   @{ revision=$Revision; directory=$release; previous=$previous; backup=$backup; deployedUtc=[DateTime]::UtcNow.ToString('o') } |
-    ConvertTo-Json | Set-Content (Join-Path $setup 'current-release.json')
+    ConvertTo-Json | Set-Content (Join-Path $setup 'releases\current-release.json')
   Write-Host "DEPLOY SUCCESS: $Revision; local/public HTTP 200; LanguageTool online"
 } catch {
   $failure = "$($_.Exception.Message) (line $($_.InvocationInfo.ScriptLineNumber))"
   if ($stopped) {
     try {
       Stop-Service -Name $ServiceName -ErrorAction SilentlyContinue
-      if ($switched) { Set-ItemProperty -LiteralPath $serviceParameters -Name AppDirectory -Value $previous }
+      if ($switched) { SetServiceDirectory $previous }
       if ($backupReady -and (Test-Path -LiteralPath $backup)) {
         # Fixed targets inside ServerRoot; the stopped app cannot write to SQLite.
         $db = Join-Path $ServerRoot 'data\app.db'
