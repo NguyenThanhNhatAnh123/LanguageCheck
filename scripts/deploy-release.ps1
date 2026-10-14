@@ -30,7 +30,7 @@ function SetServiceDirectory([string]$Directory) {
   $path = "SYSTEM\CurrentControlSet\Services\$ServiceName\Parameters"
   $key = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey(
     $path,
-    [Microsoft.Win32.RegistryKeyPermissionCheck]::Default,
+    [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree,
     [Security.AccessControl.RegistryRights]::SetValue
   )
   if (-not $key) { throw 'Cannot open PodQA service parameters' }
@@ -55,6 +55,8 @@ try {
   if ($LASTEXITCODE -ne 0 -or $actual -ne $Revision) { throw 'Checkout does not match verified revision' }
   $previous = (Get-ItemProperty -LiteralPath $serviceParameters -Name AppDirectory).AppDirectory
   if (-not $previous -or -not (Test-Path -LiteralPath $previous)) { throw 'Cannot read current service directory' }
+  # Validate the exact SetValue permission before doing any build or downtime.
+  SetServiceDirectory $previous
   $envPath = Join-Path $ServerRoot '.env.local'
   $config = @{}
   foreach ($line in Get-Content -LiteralPath $envPath) {
