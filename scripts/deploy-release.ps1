@@ -35,8 +35,8 @@ function WaitHealthy([string]$Url) {
   throw "Application health check failed: $Url"
 }
 try {
-  $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-  if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Deployment requires service administration permission' }
+  # The dedicated deployment account can control only PodQA. No administrator
+  # membership is needed; service/file permissions are provisioned at install.
   Set-Location -LiteralPath $SourceDir
   $actual = (& git rev-parse HEAD).Trim()
   if ($LASTEXITCODE -ne 0 -or $actual -ne $Revision) { throw 'Checkout does not match verified revision' }

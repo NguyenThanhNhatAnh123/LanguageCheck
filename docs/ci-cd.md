@@ -5,8 +5,11 @@ GitHub-hosted Windows. Only a successful `main` run may deploy through the
 `podqa-production` self-hosted runner. Pull requests never run on this server.
 Concurrent deployments are serialized; a running deployment is not cancelled.
 
-The production runner runs as a Windows service. It needs administrative service
-access, so repository write access and edits to `main`/workflows must be trusted.
+The production runner runs as a Windows service under the dedicated non-admin
+`PodQADeploy` account. PodQA uses the same account. It can control only PodQA and
+write release/backup/log/data directories. Repository write access and edits to
+`main`/workflows must still be trusted because deployments run application code
+and can read its configuration.
 GitHub Actions and the runner use outbound connections; no incoming port is added.
 
 `scripts/deploy-release.ps1` builds the exact verified commit in a new directory
