@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /
+Allow: /uspodsach2d/privacy-policy.html$
+Allow: /uspodsach2d/data-deletion.html$
+Allow: /uspodsach2d/styles.css$

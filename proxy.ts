@@ -5,6 +5,7 @@ import { isValidSessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 const PUBLIC_PATHS = new Set([
   "/login",
   "/api/auth/login",
+  "/robots.txt",
   // Only these app-policy documents are public; the QA dashboard and APIs stay private.
   "/uspodsach2d/privacy-policy.html",
   "/uspodsach2d/data-deletion.html",

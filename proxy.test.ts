@@ -31,6 +31,20 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("UsPodsach2D public policy documents", () => {
+  it("serves the crawler policy without a session and allows only the named policy documents", async () => {
+    const response = await proxy(request("/robots.txt"));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.has("location")).toBe(false);
+    const robots = fs.readFileSync("app/robots.txt", "utf8");
+    expect(robots.split(/\r?\n/).filter(Boolean)).toEqual([
+      "User-agent: *",
+      "Disallow: /",
+      ...policyPaths.map((urlPath) => `Allow: ${urlPath}$`),
+    ]);
+    expect(robots).not.toContain("<html");
+  });
+
   it.each(policyPaths)("allows signed-out readers to reach %s", async (urlPath) => {
     expect(fs.statSync(path.join("public", urlPath)).isFile()).toBe(true);
     const response = await proxy(request(urlPath));
@@ -68,6 +82,9 @@ describe("QA authentication remains enforced", () => {
     "/dictionary",
     "/usage",
     "/lt-test",
+    "/robots.txt.bak",
+    "/robots.txt/private",
+    "/private/robots.txt",
     "/uspodsach2d",
     "/uspodsach2d/",
     "/uspodsach2d/other.html",
