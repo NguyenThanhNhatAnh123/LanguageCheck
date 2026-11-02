@@ -2,7 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { UNAUTHORIZED_MESSAGE } from "@/lib/auth/require-session";
 import { isValidSessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 
-const PUBLIC_PATHS = new Set(["/login", "/api/auth/login"]);
+const PUBLIC_PATHS = new Set([
+  "/login",
+  "/api/auth/login",
+  // Only these app-policy documents are public; the QA dashboard and APIs stay private.
+  "/uspodsach2d/privacy-policy.html",
+  "/uspodsach2d/data-deletion.html",
+  "/uspodsach2d/styles.css",
+]);
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
